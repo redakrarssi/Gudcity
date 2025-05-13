@@ -23,6 +23,7 @@ const Services = lazy(() => import('./pages/Services'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Login = lazy(() => import('./pages/auth/Login'));
 const Register = lazy(() => import('./pages/auth/Register'));
+const TestQR = lazy(() => import('./pages/home/TestQR'));
 
 // Lazy-loaded pages - Dashboard
 const Dashboard = lazy(() => import('./pages/dashboard/Dashboard'));
@@ -96,6 +97,11 @@ function App() {
           <Route path="register" element={
             <Suspense fallback={<LoadingFallback />}>
               <Register />
+            </Suspense>
+          } />
+          <Route path="test-qr" element={
+            <Suspense fallback={<LoadingFallback />}>
+              <TestQR />
             </Suspense>
           } />
         </Route>
