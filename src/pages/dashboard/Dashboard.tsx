@@ -7,7 +7,7 @@ import { useBusiness } from '../../hooks/useBusiness';
 import { useAuth } from '../../contexts/AuthContext';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import QRScanner from '../../components/qr/QRScanner';
+import CorrectQRScanner from '../../components/qr/CorrectQRScanner';
 
 // Register Chart.js components
 Chart.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Title, Tooltip, Legend);
@@ -162,7 +162,7 @@ const Dashboard: React.FC = () => {
         
         {/* QR Scanner Modal */}
         {showQRScanner && (
-          <QRScanner 
+          <CorrectQRScanner 
             isModal={true}
             onClose={() => setShowQRScanner(false)}
             onSuccess={handleQRScanSuccess}

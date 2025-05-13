@@ -24,6 +24,7 @@ const Contact = lazy(() => import('./pages/Contact'));
 const Login = lazy(() => import('./pages/auth/Login'));
 const Register = lazy(() => import('./pages/auth/Register'));
 const TestQR = lazy(() => import('./pages/home/TestQR'));
+const NeonDemo = lazy(() => import('./pages/NeonDemo'));
 
 // Lazy-loaded pages - Dashboard
 const Dashboard = lazy(() => import('./pages/dashboard/Dashboard'));
@@ -102,6 +103,11 @@ function App() {
           <Route path="test-qr" element={
             <Suspense fallback={<LoadingFallback />}>
               <TestQR />
+            </Suspense>
+          } />
+          <Route path="neon-demo" element={
+            <Suspense fallback={<LoadingFallback />}>
+              <NeonDemo />
             </Suspense>
           } />
         </Route>

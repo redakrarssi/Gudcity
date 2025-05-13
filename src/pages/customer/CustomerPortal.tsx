@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { Card } from '../../components/ui/Card';
 import { ListChecks, CreditCard, Gift, ChevronRight, Award, ArrowRight, ExternalLink, PlusCircle, QrCode } from 'lucide-react';
 import { CustomerLoyaltyCard } from '../../components/cards';
-import QRScanner from '../../components/qr/QRScanner';
+import CorrectQRScanner from '../../components/qr/CorrectQRScanner';
 import Button from '../../components/ui/Button';
 
 // Sample data for customer's loyalty programs
@@ -444,7 +444,7 @@ const CustomerPortal: React.FC = () => {
         
         {/* QR Scanner Modal */}
         {showQRScanner && (
-          <QRScanner 
+          <CorrectQRScanner 
             isModal={true}
             onClose={() => setShowQRScanner(false)}
             onSuccess={handleQRScanSuccess}

@@ -3,10 +3,7 @@ import { processQRCode, claimPoints } from '../../services/qrService';
 import { useAuth } from '../../hooks/useAuth';
 import Button from '../ui/Button';
 import { Camera, X, AlertCircle, CheckCircle, ShieldAlert, Loader } from 'lucide-react';
-// Remove the import that's causing issues
-// import { Html5Qrcode } from 'html5-qrcode';
-
-// This component uses the CDN version loaded in index.html
+import { Html5Qrcode } from 'html5-qrcode';
 
 interface QRScannerProps {
   onSuccess?: (result: { success: boolean; message: string; transaction?: any }) => void;
@@ -14,7 +11,7 @@ interface QRScannerProps {
   isModal?: boolean;
 }
 
-const CorrectQRScanner: React.FC<QRScannerProps> = ({ onSuccess, onClose, isModal = false }) => {
+const FixedQRScanner: React.FC<QRScannerProps> = ({ onSuccess, onClose, isModal = false }) => {
   const { user } = useAuth();
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,53 +19,19 @@ const CorrectQRScanner: React.FC<QRScannerProps> = ({ onSuccess, onClose, isModa
   const [loading, setLoading] = useState(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
-  const scannerRef = useRef<any>(null);
-  const scannerElementRef = useRef<HTMLDivElement | null>(null);
-  const scannerElementId = useRef(`qr-reader-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerElementId = useRef(`qr-reader-${Date.now()}`);
   const isMounted = useRef(true);
 
   // Setup effect for mount/unmount
   useEffect(() => {
     isMounted.current = true;
     
-    // Load the script immediately if it's not yet loaded
-    if (typeof window !== 'undefined' && !(window as any).Html5Qrcode) {
-      loadQrScript();
-    }
-    
     return () => {
       isMounted.current = false;
       stopScanner();
-      
-      // Clean up any remaining scanner elements
-      try {
-        if (scannerElementRef.current && containerRef.current && containerRef.current.contains(scannerElementRef.current)) {
-          containerRef.current.removeChild(scannerElementRef.current);
-        }
-      } catch (err) {
-        console.error("Cleanup error:", err);
-      }
     };
   }, []);
-  
-  // Function to load the QR code script dynamically if needed
-  const loadQrScript = () => {
-    if (typeof window !== 'undefined' && !(window as any).Html5Qrcode) {
-      const script = document.createElement('script');
-      script.src = "https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js";
-      script.async = true;
-      script.onload = () => {
-        console.log("Html5Qrcode script loaded successfully");
-      };
-      script.onerror = () => {
-        console.error("Failed to load Html5Qrcode script");
-        if (isMounted.current) {
-          setError("Failed to load QR scanner. Please check your internet connection.");
-        }
-      };
-      document.head.appendChild(script);
-    }
-  };
 
   // Stop scanner safely
   const stopScanner = () => {
@@ -131,116 +94,63 @@ const CorrectQRScanner: React.FC<QRScannerProps> = ({ onSuccess, onClose, isModa
     setScanning(true);
     setLoading(true);
     
-    // Make sure the script is loaded
-    if (typeof window !== 'undefined' && !(window as any).Html5Qrcode) {
-      loadQrScript();
-      // Wait for script to load
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // If still not loaded, show error
-      if (!(window as any).Html5Qrcode) {
-        setError('QR scanner failed to load. Please refresh the page and try again.');
-        setScanning(false);
-        setLoading(false);
-        return;
-      }
-    }
-    
     try {
-      // Get the Html5Qrcode constructor from window
-      const Html5Qrcode = (window as any).Html5Qrcode;
-      
-      if (!Html5Qrcode) {
-        throw new Error(
-          "QR code scanner library not available. Please check your internet connection or try refreshing the page."
-        );
-      }
-
-      // First clean up any existing scanner elements
-      if (containerRef.current) {
-        // Safely clear container - only remove our scanner elements, not other children
-        try {
-          const existingElement = document.getElementById(scannerElementId.current);
-          if (existingElement && containerRef.current.contains(existingElement)) {
-            containerRef.current.removeChild(existingElement);
-          }
-          
-          // Also check our ref
-          if (scannerElementRef.current && containerRef.current.contains(scannerElementRef.current)) {
-            containerRef.current.removeChild(scannerElementRef.current);
-          }
-        } catch (err) {
-          console.error('Cleanup error:', err);
-          // Continue anyway, as we'll create a new element
-        }
+      // Create a new scanner element each time
+      const existingElement = document.getElementById(scannerElementId.current);
+      if (existingElement && existingElement.parentNode) {
+        existingElement.parentNode.removeChild(existingElement);
       }
       
-      // Create new scanner element with unique ID
+      // Create new scanner element
       const scannerElement = document.createElement('div');
       scannerElement.id = scannerElementId.current;
       scannerElement.style.width = '100%';
       scannerElement.style.height = '100%';
-      scannerElementRef.current = scannerElement;
       
-      // Add scanner element to container
-      if (containerRef.current) {
-        containerRef.current.appendChild(scannerElement);
-      } else {
-        throw new Error('Container reference is not available');
+      // Clear container and add scanner element
+      try {
+        if (containerRef.current) {
+          // Safely clear container
+          while (containerRef.current.firstChild) {
+            containerRef.current.removeChild(containerRef.current.firstChild);
+          }
+          containerRef.current.appendChild(scannerElement);
+        }
+      } catch (err) {
+        console.error('Error manipulating DOM:', err);
+        if (isMounted.current) {
+          setError('Failed to initialize scanner');
+          setScanning(false);
+          setLoading(false);
+        }
+        return;
       }
       
       // Initialize scanner
-      try {
-        scannerRef.current = new Html5Qrcode(scannerElementId.current);
-        
-        // Start scanning with more explicit configuration
-        await scannerRef.current.start(
-          { facingMode: "environment" },
-          { 
-            fps: 10, 
-            qrbox: { width: 250, height: 250 },
-            formatsToSupport: (window as any).Html5QrcodeSupportedFormats ? 
-              [(window as any).Html5QrcodeSupportedFormats.QR_CODE] : undefined
-          },
-          (decodedText: string) => {
-            // QR code detected
-            if (scannerRef.current) {
-              scannerRef.current.stop().then(() => {
-                if (isMounted.current) {
-                  processQrContent(decodedText);
-                }
-              }).catch(console.error);
-            }
-          },
-          (errorMessage: string) => {
-            // Handle permission errors and other errors more gracefully
-            console.log("Scanner feedback:", errorMessage);
-            
-            if (errorMessage.includes("permission") && isMounted.current) {
-              setError('Camera permission denied. Please allow camera access in your browser settings.');
-              stopScanner();
-            } else if (errorMessage.includes("starting") && isMounted.current) {
-              // Don't treat scanning errors as fatal, just log them
-              console.warn("Scanning in progress...", errorMessage);
-            }
+      scannerRef.current = new Html5Qrcode(scannerElementId.current);
+      
+      // Start scanning
+      await scannerRef.current.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText: string) => {
+          // QR code detected
+          if (scannerRef.current) {
+            scannerRef.current.stop().then(() => {
+              if (isMounted.current) {
+                processQrContent(decodedText);
+              }
+            }).catch(console.error);
           }
-        );
-      } catch (initError: any) {
-        console.error("Scanner initialization error:", initError);
-        const errorMessage = initError.message || "Unknown error";
-        
-        // Check for the specific error about QR_CODE being undefined
-        if (errorMessage.includes("Cannot read properties of undefined") && 
-            errorMessage.includes("QR_CODE")) {
-          throw new Error(
-            "QR scanner failed to initialize properly. Please refresh the page and try again."
-          );
-        } else {
-          throw new Error(
-            `Could not initialize camera: ${errorMessage}. Please ensure you've granted camera permissions.`
-          );
+        },
+        (errorMessage: string) => {
+          // Only handle permission errors
+          if (errorMessage.includes("permission") && isMounted.current) {
+            setError('Camera permission denied');
+            stopScanner();
+          }
         }
-      }
+      );
       
       if (isMounted.current) {
         setLoading(false);
@@ -248,7 +158,7 @@ const CorrectQRScanner: React.FC<QRScannerProps> = ({ onSuccess, onClose, isModa
     } catch (err: any) {
       console.error('Scanner error:', err);
       if (isMounted.current) {
-        setError(err.message || 'Failed to start scanner. Please try again or use a different device.');
+        setError(err.message || 'Failed to start scanner');
         setScanning(false);
         setLoading(false);
       }
@@ -265,7 +175,7 @@ const CorrectQRScanner: React.FC<QRScannerProps> = ({ onSuccess, onClose, isModa
     }
     
     // Generate a new scanner ID for next use
-    scannerElementId.current = `qr-reader-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    scannerElementId.current = `qr-reader-${Date.now()}`;
   };
 
   // Handle close action
@@ -394,4 +304,4 @@ const CorrectQRScanner: React.FC<QRScannerProps> = ({ onSuccess, onClose, isModa
   );
 };
 
-export default CorrectQRScanner; 
+export default FixedQRScanner; 

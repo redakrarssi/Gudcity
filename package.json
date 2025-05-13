@@ -6,19 +6,24 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "setup-neon": "node setup-neon-database.js",
+    "test-neon": "node test-neon-connection.js"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.18",
     "@hookform/resolvers": "^3.3.4",
+    "@neondatabase/serverless": "^2.49.4",
     "@supabase/supabase-js": "^2.49.4",
     "@tailwindcss/forms": "^0.5.10",
     "chart.js": "^4.4.2",
     "date-fns": "^3.4.0",
+    "dotenv": "^16.4.1",
     "firebase": "^10.8.1",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.344.0",
     "nanoid": "^5.1.5",
+    "pg": "^8.11.3",
     "qrcode.react": "^3.1.0",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",

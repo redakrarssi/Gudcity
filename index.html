@@ -15,6 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://supabase.co" />
+    <link rel="preconnect" href="https://unpkg.com" />
 
     <!-- Font display optimization -->
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
@@ -57,6 +58,62 @@
     </style>
     
     <title>GudCity Loyalty</title>
+    
+    <!-- QR Code Scanner Script - with fallbacks -->
+    <script type="text/javascript">
+      // Load the QR code library with fallbacks and error handling
+      function loadQrScanner() {
+        // Check if already loaded
+        if (window.Html5Qrcode) return;
+        
+        var script = document.createElement('script');
+        script.src = "https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js";
+        script.integrity = "sha384-FZ3c8SZ96Cf0URY04SPTgA4EIlvJNJiZxAqSYP0hM+lHc0LB0cf+fMMZBpbRRdeV";
+        script.crossOrigin = "anonymous";
+        
+        // Handle errors
+        script.onerror = function() {
+          console.warn("Could not load QR scanner from CDN. Will try an alternative source.");
+          
+          // Try alternative source if primary fails
+          var backupScript = document.createElement('script');
+          backupScript.src = "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js";
+          document.head.appendChild(backupScript);
+        };
+        
+        // After script loads, ensure formats are available
+        script.onload = function() {
+          // Create a fallback for the formats if they don't exist
+          if (!window.Html5QrcodeSupportedFormats) {
+            console.log("Creating fallback formats object");
+            window.Html5QrcodeSupportedFormats = {
+              QR_CODE: 0,
+              AZTEC: 1,
+              CODABAR: 2,
+              CODE_39: 3,
+              CODE_93: 4,
+              CODE_128: 5,
+              DATA_MATRIX: 6,
+              MAXICODE: 7,
+              ITF: 8,
+              EAN_13: 9,
+              EAN_8: 10,
+              PDF_417: 11,
+              RSS_14: 12,
+              RSS_EXPANDED: 13,
+              UPC_A: 14,
+              UPC_E: 15,
+              UPC_EAN_EXTENSION: 16
+            };
+          }
+        };
+        
+        document.head.appendChild(script);
+      }
+      
+      // Load the QR scanner library
+      loadQrScanner();
+    </script>
     
     <!-- Portal URL redirect script -->
     <script>
