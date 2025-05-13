@@ -124,8 +124,15 @@ export default defineConfig({
       'chart.js',
       'react-chartjs-2'
     ],
+    exclude: ['html5-qrcode'],
     esbuildOptions: {
       target: 'es2020'
+    }
+  },
+  resolve: {
+    alias: {
+      // Prevent Vite from trying to bundle the html5-qrcode
+      'html5-qrcode': 'html5-qrcode'
     }
   },
   server: {
