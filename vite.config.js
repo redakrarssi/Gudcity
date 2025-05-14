@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
+import viteCompression from 'vite-plugin-compression';
 
 // Plugin to fix context refresh issues
 const fixContextRefreshPlugin = () => {
@@ -37,17 +39,66 @@ if (import.meta.hot) {
 };
 
 export default defineConfig({
+  // Base path - important for hosting in subdirectories
+  base: '/',
   plugins: [
     fixContextRefreshPlugin(),
-    react({
-      // Completely disable Fast Refresh for now as a more reliable solution
-      fastRefresh: false,
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'robots.txt'],
+      manifest: {
+        name: 'GudCity Loyalty',
+        short_name: 'GudCity',
+        description: 'GudCity Loyalty rewards program',
+        theme_color: '#ffffff',
+        icons: [
+          {
+            src: 'favicon.svg',
+            sizes: '64x64 128x128 256x256 512x512',
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
+          },
+          {
+            src: 'icon-192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'icon-512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          }
+        ]
+      }
+    }),
+    viteCompression({
+      algorithm: 'gzip',
+      ext: '.gz'
+    }),
+    viteCompression({
+      algorithm: 'brotliCompress',
+      ext: '.br'
     })
   ],
   server: {
     hmr: {
-      // Better error overlay handling
       overlay: true
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor': ['date-fns', 'nanoid', 'uuid'],
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-charts': ['chart.js', 'react-chartjs-2']
+        }
+      }
+    },
+    // Create source maps for easier debugging
+    sourcemap: true,
+    // Improve chunk size warnings configuration
+    chunkSizeWarningLimit: 1000
   }
 }); 
