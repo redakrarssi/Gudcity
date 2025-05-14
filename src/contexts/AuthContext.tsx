@@ -195,38 +195,62 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     console.log('Initializing authentication...');
     
-    // Check if we have a stored user
-    const storedUser = getStoredUserData();
-    
-    if (storedUser) {
-      console.log('Found stored user data, restoring session');
-      setUser(storedUser);
-    } else {
-      // Check if we have a stored role preference
-      const storedUserType = localStorage.getItem(USER_ROLE_KEY);
-      
-      if (storedUserType) {
-        // Use the stored role preference
-        if (storedUserType === 'manager' || storedUserType === 'business') {
-          setUser(MOCK_USERS.business);
-          console.log('Initialized with stored business user role');
-        } else if (storedUserType === 'admin') {
-          setUser(MOCK_USERS.admin);
-          console.log('Initialized with stored admin user role');
-        } else {
-          setUser(MOCK_USERS.customer);
-          console.log('Initialized with stored customer user role');
-        }
-      } else {
-        // In a real app, we would check for stored credentials
-        // Default to business role for testing
+    // Add a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.warn('Authentication initialization timed out, falling back to default user');
+        // Force default user if still loading after timeout
         setUser(MOCK_USERS.business);
         localStorage.setItem(USER_ROLE_KEY, 'manager');
-        console.log('No stored role found, defaulting to business user');
+        setLoading(false);
       }
+    }, 5000); // 5 second timeout
+    
+    try {
+      // Check if we have a stored user
+      const storedUser = getStoredUserData();
+      
+      if (storedUser) {
+        console.log('Found stored user data, restoring session');
+        setUser(storedUser);
+      } else {
+        // Check if we have a stored role preference
+        const storedUserType = localStorage.getItem(USER_ROLE_KEY);
+        
+        if (storedUserType) {
+          // Use the stored role preference
+          if (storedUserType === 'manager' || storedUserType === 'business') {
+            setUser(MOCK_USERS.business);
+            console.log('Initialized with stored business user role');
+          } else if (storedUserType === 'admin') {
+            setUser(MOCK_USERS.admin);
+            console.log('Initialized with stored admin user role');
+          } else {
+            setUser(MOCK_USERS.customer);
+            console.log('Initialized with stored customer user role');
+          }
+        } else {
+          // In a real app, we would check for stored credentials
+          // Default to business role for testing
+          setUser(MOCK_USERS.business);
+          localStorage.setItem(USER_ROLE_KEY, 'manager');
+          console.log('No stored role found, defaulting to business user');
+        }
+      }
+    } catch (error) {
+      console.error('Error during authentication initialization:', error);
+      // Fall back to default user in case of any error
+      setUser(MOCK_USERS.business);
+      localStorage.setItem(USER_ROLE_KEY, 'manager');
+    } finally {
+      // Always set loading to false to prevent infinite loading
+      setLoading(false);
+      // Clear the timeout if initialization completes before timeout
+      clearTimeout(timeoutId);
     }
     
-    setLoading(false);
+    // Clean up the timeout on unmount
+    return () => clearTimeout(timeoutId);
   }, []);
 
   // Update the setUserRole function to store the selection
