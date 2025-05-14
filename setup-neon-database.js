@@ -9,10 +9,18 @@
  * Run with: node setup-neon-database.js
  */
 
-const fs = require('fs');
-const path = require('path');
-const { Pool } = require('pg');
-require('dotenv').config({ path: '.env.development.local' });
+import fs from 'fs';
+import path from 'path';
+import { Pool } from 'pg';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+
+// Get the current file's directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables
+dotenv.config({ path: '.env.development.local' });
 
 // Database connection details from the instructions
 const connectionDetails = {

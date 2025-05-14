@@ -1,18 +1,34 @@
 /**
  * This script tests the connection to your Neon database.
- * It requires the .env.development.local file to be set up correctly.
+ * It requires the .env.development.local or .env.local file to be set up correctly.
  * 
  * Run this with: node test-neon-connection.js
  */
 
-// Load environment variables from .env.development.local
-require('dotenv').config({ path: '.env.development.local' });
+// Load environment variables from multiple possible files
+import dotenv from 'dotenv';
+import { Pool } from 'pg';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const { Pool } = require('pg');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Try loading from .env.development.local first, then .env.local
+if (fs.existsSync(path.join(__dirname, '.env.development.local'))) {
+  console.log('Loading environment from .env.development.local');
+  dotenv.config({ path: '.env.development.local' });
+}
+
+if (!process.env.VITE_DATABASE_URL && fs.existsSync(path.join(__dirname, '.env.local'))) {
+  console.log('Loading environment from .env.local');
+  dotenv.config({ path: '.env.local' });
+}
 
 // Check if the database URL is available
 if (!process.env.VITE_DATABASE_URL) {
-  console.error('\x1b[31m%s\x1b[0m', 'Error: VITE_DATABASE_URL is not defined in your .env.development.local file');
+  console.error('\x1b[31m%s\x1b[0m', 'Error: VITE_DATABASE_URL is not defined in your environment files');
   console.log('\x1b[33m%s\x1b[0m', 'Try running: node setup-neon-env.js');
   process.exit(1);
 }
