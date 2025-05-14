@@ -1,115 +1,463 @@
-import { supabase, TABLES, handleDbError } from '../config/database';
+import dbService from './database';
 import type { Tables } from '../models/database.types';
-import { Customer } from '../contexts/BusinessContext';
+import { nanoid } from 'nanoid';
 
-// Get all customers for a business
-export const getCustomers = async (businessId: string): Promise<Customer[]> => {
-  try {
-    const { data, error } = await supabase
-      .from(TABLES.CUSTOMERS)
-      .select('*, loyalty_cards(*)')
-      .eq('business_id', businessId);
+/**
+ * Customer Service
+ * Manages customer data and operations
+ */
+class CustomerService {
+  /**
+   * Get a customer by ID
+   */
+  async getCustomerById(customerId: string): Promise<Tables['customers'] | null> {
+    try {
+      const query = `
+        SELECT * FROM customers
+        WHERE id = $1
+        LIMIT 1
+      `;
       
-    if (error) throw error;
-    
-    return data as Customer[];
-  } catch (error) {
-    return handleDbError(error, 'fetch customers');
+      const result = await dbService.executeQuery(query, [customerId]);
+      
+      if (result.length === 0) {
+        return null;
+      }
+      
+      return result[0] as Tables['customers'];
+    } catch (error) {
+      console.error('Error fetching customer:', error);
+      throw error;
+    }
   }
-};
+  
+  /**
+   * Get a customer by user ID
+   */
+  async getCustomerByUserId(userId: string): Promise<Tables['customers'] | null> {
+    try {
+      const query = `
+        SELECT * FROM customers
+        WHERE user_id = $1
+        LIMIT 1
+      `;
+      
+      const result = await dbService.executeQuery(query, [userId]);
+      
+      if (result.length === 0) {
+        return null;
+      }
+      
+      return result[0] as Tables['customers'];
+    } catch (error) {
+      console.error('Error fetching customer by user ID:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get customers for a business
+   */
+  async getBusinessCustomers(
+    businessId: string,
+    options: {
+      limit?: number;
+      offset?: number;
+      sortBy?: string;
+      sortDirection?: 'asc' | 'desc';
+      searchTerm?: string;
+    } = {}
+  ): Promise<{
+    customers: Tables['customers'][];
+    total: number;
+  }> {
+    try {
+      const { 
+        limit = 20, 
+        offset = 0, 
+        sortBy = 'sign_up_date', 
+        sortDirection = 'desc',
+        searchTerm = '' 
+      } = options;
+      
+      // Build WHERE clause
+      let whereConditions = [`business_id = $1`];
+      const params = [businessId];
+      
+      if (searchTerm) {
+        whereConditions.push(`(
+          first_name ILIKE $2 OR 
+          last_name ILIKE $2 OR 
+          email ILIKE $2 OR 
+          phone ILIKE $2
+        )`);
+        params.push(`%${searchTerm}%`);
+      }
+      
+      const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+      
+      // Build ORDER BY clause
+      const validSortColumns = [
+        'first_name', 'last_name', 'email', 'sign_up_date', 'total_points'
+      ];
+      const orderBy = validSortColumns.includes(sortBy) ? sortBy : 'sign_up_date';
+      const orderDirection = sortDirection === 'asc' ? 'ASC' : 'DESC';
+      
+      const orderClause = `ORDER BY ${orderBy} ${orderDirection}`;
+      
+      // Get total count
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM customers
+        ${whereClause}
+      `;
+      
+      const countResult = await dbService.executeQuery(countQuery, params);
+      const total = parseInt(countResult[0].total);
+      
+      // Get paginated results
+      const query = `
+        SELECT *
+        FROM customers
+        ${whereClause}
+        ${orderClause}
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      
+      const result = await dbService.executeQuery(query, params);
+      
+      return {
+        customers: result as Tables['customers'][],
+        total
+      };
+    } catch (error) {
+      console.error('Error getting business customers:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get a customer's loyalty cards
+   */
+  async getCustomerLoyaltyCards(
+    customerId: string,
+    businessId?: string
+  ): Promise<Tables['loyalty_cards'][]> {
+    try {
+      let query = `
+        SELECT lc.*
+        FROM loyalty_cards lc
+        JOIN loyalty_programs lp ON lc.program_id = lp.id
+        WHERE lc.customer_id = $1
+      `;
+      
+      const params = [customerId];
+      
+      if (businessId) {
+        query += ` AND lc.business_id = $2`;
+        params.push(businessId);
+      }
+      
+      query += ` ORDER BY lp.name ASC`;
+      
+      const result = await dbService.executeQuery(query, params);
+      return result as Tables['loyalty_cards'][];
+    } catch (error) {
+      console.error('Error getting customer loyalty cards:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get customer transactions
+   */
+  async getCustomerTransactions(
+    customerId: string,
+    options: {
+      limit?: number;
+      offset?: number;
+      businessId?: string;
+      transactionType?: 'purchase' | 'refund' | 'reward_redemption';
+    } = {}
+  ): Promise<{
+    transactions: Tables['transactions'][];
+    total: number;
+  }> {
+    try {
+      const { 
+        limit = 20, 
+        offset = 0, 
+        businessId,
+        transactionType 
+      } = options;
+      
+      // Build WHERE clause
+      let whereConditions = [`customer_id = $1`];
+      const params = [customerId];
+      
+      if (businessId) {
+        whereConditions.push(`business_id = $${params.length + 1}`);
+        params.push(businessId);
+      }
+      
+      if (transactionType) {
+        whereConditions.push(`type = $${params.length + 1}`);
+        params.push(transactionType);
+      }
+      
+      const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+      
+      // Get total count
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM transactions
+        ${whereClause}
+      `;
+      
+      const countResult = await dbService.executeQuery(countQuery, params);
+      const total = parseInt(countResult[0].total);
+      
+      // Get paginated results
+      const query = `
+        SELECT t.*, 
+          b.name as business_name,
+          lp.name as program_name
+        FROM transactions t
+        LEFT JOIN businesses b ON t.business_id = b.id
+        LEFT JOIN loyalty_programs lp ON t.program_id = lp.id
+        ${whereClause}
+        ORDER BY t.date DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      
+      const result = await dbService.executeQuery(query, params);
+      
+      return {
+        transactions: result as Tables['transactions'][],
+        total
+      };
+    } catch (error) {
+      console.error('Error getting customer transactions:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Update customer profile
+   */
+  async updateCustomerProfile(
+    customerId: string,
+    updates: Partial<Tables['customers']>
+  ): Promise<Tables['customers']> {
+    try {
+      // Build SET clause
+      const setItems = [];
+      const params = [customerId]; // First param is the ID
+      
+      const allowedFields = [
+        'first_name', 'last_name', 'email', 
+        'phone', 'address', 'birthday', 'notes'
+      ];
+      
+      for (const [key, value] of Object.entries(updates)) {
+        if (allowedFields.includes(key) && value !== undefined) {
+          setItems.push(`${key} = $${params.length + 1}`);
+          params.push(value);
+        }
+      }
+      
+      // Add updated_at
+      setItems.push(`updated_at = $${params.length + 1}`);
+      params.push(new Date().toISOString());
+      
+      // Generate update query
+      const updateQuery = `
+        UPDATE customers
+        SET ${setItems.join(', ')}
+        WHERE id = $1
+        RETURNING *
+      `;
+      
+      const result = await dbService.executeQuery(updateQuery, params);
+      return result[0] as Tables['customers'];
+    } catch (error) {
+      console.error('Error updating customer profile:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Add a new customer for a business
+   */
+  async addCustomer(
+    businessId: string,
+    customerData: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone?: string;
+      address?: string;
+      birthday?: string;
+      notes?: string;
+    }
+  ): Promise<Tables['customers']> {
+    try {
+      const { 
+        firstName, 
+        lastName, 
+        email, 
+        phone, 
+        address, 
+        birthday, 
+        notes 
+      } = customerData;
+      
+      // Check if customer already exists with this email at this business
+      const checkQuery = `
+        SELECT id FROM customers
+        WHERE business_id = $1 AND email = $2
+        LIMIT 1
+      `;
+      
+      const checkResult = await dbService.executeQuery(checkQuery, [businessId, email]);
+      
+      if (checkResult.length > 0) {
+        throw new Error('A customer with this email already exists for this business');
+      }
+      
+      // Insert new customer
+      const insertQuery = `
+        INSERT INTO customers (
+          id, business_id, first_name, last_name, email, phone, address,
+          sign_up_date, total_points, birthday, notes, created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+        )
+        RETURNING *
+      `;
+      
+      const now = new Date().toISOString();
+      const id = nanoid();
+      
+      // Fix for the linter error - explicitly casting null values to string or null
+      const phoneValue = phone || null;
+      const addressValue = address || null;
+      const birthdayValue = birthday || null;
+      const notesValue = notes || null;
+      
+      const params = [
+        id,
+        businessId,
+        firstName,
+        lastName,
+        email,
+        phoneValue,
+        addressValue,
+        now,
+        0, // Initial points
+        birthdayValue,
+        notesValue,
+        now,
+        now
+      ];
+      
+      const result = await dbService.executeQuery(insertQuery, params);
+      return result[0] as Tables['customers'];
+    } catch (error) {
+      console.error('Error adding customer:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get customer summary statistics
+   */
+  async getCustomerSummary(
+    customerId: string
+  ): Promise<{
+    totalPoints: number;
+    availableRewards: number;
+    totalTransactions: number;
+    activePrograms: number;
+    recentTransactions: Tables['transactions'][];
+  }> {
+    try {
+      // Get total points
+      const pointsQuery = `
+        SELECT total_points
+        FROM customers
+        WHERE id = $1
+        LIMIT 1
+      `;
+      
+      // Get transaction count
+      const transactionCountQuery = `
+        SELECT COUNT(*) as total
+        FROM transactions
+        WHERE customer_id = $1
+      `;
+      
+      // Get active programs count
+      const programsQuery = `
+        SELECT COUNT(DISTINCT program_id) as total
+        FROM loyalty_cards
+        WHERE customer_id = $1 AND active = true
+      `;
+      
+      // Get available rewards count
+      const rewardsQuery = `
+        SELECT COUNT(*) as total
+        FROM rewards r
+        JOIN loyalty_cards lc ON r.program_id = lc.program_id
+        WHERE 
+          lc.customer_id = $1 AND 
+          lc.active = true AND 
+          r.active = true AND
+          lc.points_balance >= r.points_required
+      `;
+      
+      // Get recent transactions
+      const recentTransactionsQuery = `
+        SELECT t.*, 
+          b.name as business_name,
+          lp.name as program_name
+        FROM transactions t
+        LEFT JOIN businesses b ON t.business_id = b.id
+        LEFT JOIN loyalty_programs lp ON t.program_id = lp.id
+        WHERE t.customer_id = $1
+        ORDER BY t.date DESC
+        LIMIT 5
+      `;
+      
+      // Execute all queries
+      const [
+        pointsResult,
+        transactionCountResult,
+        programsResult,
+        rewardsResult,
+        recentTransactionsResult
+      ] = await Promise.all([
+        dbService.executeQuery(pointsQuery, [customerId]),
+        dbService.executeQuery(transactionCountQuery, [customerId]),
+        dbService.executeQuery(programsQuery, [customerId]),
+        dbService.executeQuery(rewardsQuery, [customerId]),
+        dbService.executeQuery(recentTransactionsQuery, [customerId])
+      ]);
+      
+      return {
+        totalPoints: parseInt(pointsResult[0]?.total_points || '0'),
+        totalTransactions: parseInt(transactionCountResult[0]?.total || '0'),
+        activePrograms: parseInt(programsResult[0]?.total || '0'),
+        availableRewards: parseInt(rewardsResult[0]?.total || '0'),
+        recentTransactions: recentTransactionsResult as Tables['transactions'][]
+      };
+    } catch (error) {
+      console.error('Error getting customer summary:', error);
+      throw error;
+    }
+  }
+}
 
-// Get a single customer by ID
-export const getCustomer = async (customerId: string): Promise<Customer | null> => {
-  try {
-    const { data, error } = await supabase
-      .from(TABLES.CUSTOMERS)
-      .select('*, loyalty_cards(*), transactions(*)')
-      .eq('id', customerId)
-      .single();
-      
-    if (error) throw error;
-    
-    return data as Customer;
-  } catch (error) {
-    return handleDbError(error, 'fetch customer');
-  }
-};
-
-// Create a new customer
-export const createCustomer = async (customer: Omit<Tables['customers'], 'id' | 'created_at' | 'updated_at'>): Promise<Customer> => {
-  try {
-    // First create the customer
-    const { data, error } = await supabase
-      .from(TABLES.CUSTOMERS)
-      .insert([{
-        ...customer,
-        total_points: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
-      
-    if (error) throw error;
-    
-    return data as Customer;
-  } catch (error) {
-    return handleDbError(error, 'create customer');
-  }
-};
-
-// Update an existing customer
-export const updateCustomer = async (customerId: string, updates: Partial<Omit<Tables['customers'], 'id' | 'created_at'>>): Promise<Customer> => {
-  try {
-    const { data, error } = await supabase
-      .from(TABLES.CUSTOMERS)
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', customerId)
-      .select()
-      .single();
-      
-    if (error) throw error;
-    
-    return data as Customer;
-  } catch (error) {
-    return handleDbError(error, 'update customer');
-  }
-};
-
-// Delete a customer
-export const deleteCustomer = async (customerId: string): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from(TABLES.CUSTOMERS)
-      .delete()
-      .eq('id', customerId);
-      
-    if (error) throw error;
-  } catch (error) {
-    handleDbError(error, 'delete customer');
-  }
-};
-
-// Assign a loyalty card to a customer
-export const assignLoyaltyCard = async (cardData: Omit<Tables['loyalty_cards'], 'id' | 'created_at' | 'updated_at'>): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from(TABLES.LOYALTY_CARDS)
-      .insert([{
-        ...cardData,
-        points_balance: 0,
-        punch_count: cardData.punch_count || 0,
-        issue_date: new Date().toISOString(),
-        active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }]);
-      
-    if (error) throw error;
-  } catch (error) {
-    handleDbError(error, 'assign loyalty card');
-  }
-}; 
+// Create singleton instance
+const customerService = new CustomerService();
+export default customerService; 

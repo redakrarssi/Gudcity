@@ -56,6 +56,13 @@ const PointCodeGenerator: React.FC<PointCodeGeneratorProps> = ({
     };
     
     loadCodes();
+    
+    // Set up a refresh timer to keep the list updated
+    const intervalId = setInterval(() => {
+      setRefreshTrigger(prev => prev + 1);
+    }, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(intervalId);
   }, [business?.id, programId, refreshTrigger]);
 
   // Generate a new code

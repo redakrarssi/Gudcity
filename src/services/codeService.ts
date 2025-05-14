@@ -279,6 +279,24 @@ export const getBusinessActiveCodes = async (
     } as PointCode));
     
     console.log('Found active codes:', codes.length);
+    
+    // Only return mock data if no codes were found AND we're in development mode
+    if (codes.length === 0 && window.BYPASS_AUTH) {
+      console.log('No codes found, using mock code for development');
+      return [{
+        id: 'mock-code-1',
+        code: 'TEST1234',
+        type: 'earn',
+        businessId,
+        programId: 'program-1',
+        pointAmount: 50,
+        isUsed: false,
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day from now
+        metadata: { programName: 'GudPoints' }
+      }];
+    }
+    
     return codes;
     
   } catch (error) {

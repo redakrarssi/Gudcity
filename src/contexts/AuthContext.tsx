@@ -1,98 +1,165 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-// Define User type
-export interface User {
-  uid: string;
-  email: string;
-  role: 'business' | 'customer' | 'admin';
-  businessId?: string;
-  customerId?: string;
-  displayName?: string;
-  points?: number;
-}
+import authService, { User } from '../services/authService';
 
 // Define context type
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, role: 'business' | 'customer', businessName?: string, phoneNumber?: string) => Promise<void>;
+  signUp: (email: string, password: string, role: 'admin' | 'manager' | 'staff' | 'customer', firstName?: string, lastName?: string, businessName?: string, phoneNumber?: string, address?: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  setUserRole: (role: 'business' | 'customer' | 'admin') => void;
+  setUserRole: (role: 'admin' | 'manager' | 'staff' | 'customer') => void;
 }
 
 // Create context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for testing
+// Storage keys
+const USER_STORAGE_KEY = 'gudcity-user-data';
+const USER_ROLE_KEY = 'userRole';
+
+// Mock users for testing - used as fallbacks if database connection fails
 const MOCK_USERS = {
   business: {
-    uid: 'mock-business-uid',
+    id: 'mock-business-uid',
     email: 'business@example.com',
-    role: 'business' as const,
+    role: 'manager' as const,
     businessId: 'mock-business-id',
-    displayName: 'Mock Business',
+    firstName: 'Business',
+    lastName: 'Owner',
+    displayName: 'Business Owner',
   },
   customer: {
-    uid: 'mock-customer-uid',
+    id: 'mock-customer-uid',
     email: 'customer@example.com',
     role: 'customer' as const,
     customerId: 'mock-customer-id',
+    firstName: 'Mock',
+    lastName: 'Customer',
     displayName: 'Mock Customer',
-    points: 350,
   },
   admin: {
-    uid: 'mock-admin-uid',
+    id: 'mock-admin-uid',
     email: 'admin@example.com',
     role: 'admin' as const,
     displayName: 'Admin User',
   }
 };
 
+// Helper function to safely parse localStorage data
+const getStoredUserData = (): User | null => {
+  try {
+    const storedData = localStorage.getItem(USER_STORAGE_KEY);
+    return storedData ? JSON.parse(storedData) : null;
+  } catch (error) {
+    console.error('Error parsing user data from localStorage:', error);
+    return null;
+  }
+};
+
 // Provider component
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Set default user as customer for bypassing auth
-  const [user, setUser] = useState<User | null>(MOCK_USERS.customer);
-  const [loading, setLoading] = useState(false);
+  // Initialize user state from localStorage
+  const [user, setUser] = useState<User | null>(() => {
+    return getStoredUserData();
+  });
+  const [loading, setLoading] = useState(true);
 
-  // Auth methods (simplified for bypassing)
+  // Persist user data to localStorage when it changes
+  useEffect(() => {
+    if (user) {
+      try {
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+        localStorage.setItem(USER_ROLE_KEY, user.role);
+        console.log('User data saved to localStorage');
+      } catch (error) {
+        console.error('Error saving user data to localStorage:', error);
+      }
+    } else {
+      // Clear storage on logout
+      localStorage.removeItem(USER_STORAGE_KEY);
+      // We might want to keep the role preference
+    }
+  }, [user]);
+
+  // Auth methods
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
-      // Determine which mock user to use based on email
-      if (email.includes('business')) {
-        setUser(MOCK_USERS.business);
-      } else if (email.includes('customer')) {
-        setUser(MOCK_USERS.customer);
-      } else if (email.includes('admin')) {
-        setUser(MOCK_USERS.admin);
+      const loggedInUser = await authService.signIn(email, password);
+      
+      if (loggedInUser) {
+        setUser(loggedInUser);
+        console.log('Signed in as:', email, 'with role:', loggedInUser.role);
       } else {
-        // Default to customer user
-        setUser(MOCK_USERS.customer);
+        // Fall back to mock users if database connection fails
+        if (email.includes('business')) {
+          setUser(MOCK_USERS.business);
+        } else if (email.includes('customer')) {
+          setUser(MOCK_USERS.customer);
+        } else if (email.includes('admin')) {
+          setUser(MOCK_USERS.admin);
+        } else {
+          // Default to customer user
+          setUser(MOCK_USERS.customer);
+        }
+        console.log('Signed in with mock user as:', email);
       }
-      console.log('Signed in as:', email);
     } catch (error) {
       console.error('Authentication error:', error);
+      // Fall back to mock users
+      setUser(MOCK_USERS.customer);
     } finally {
       setLoading(false);
     }
   };
 
-  const signUp = async (email: string, password: string, role: 'business' | 'customer', businessName?: string, phoneNumber?: string) => {
+  const signUp = async (
+    email: string, 
+    password: string, 
+    role: 'admin' | 'manager' | 'staff' | 'customer',
+    firstName?: string,
+    lastName?: string,
+    businessName?: string,
+    phoneNumber?: string,
+    address?: string
+  ) => {
     setLoading(true);
     try {
-      // Always succeed and set the user based on the selected role
-      if (role === 'business') {
-        setUser({ 
-          ...MOCK_USERS.business, 
-          email,
-          displayName: businessName || 'Mock Business'
-        });
-        console.log('Signed up as business:', email, 'with name:', businessName, 'and phone:', phoneNumber);
+      const newUser = await authService.signUp(
+        email, 
+        password, 
+        role, 
+        firstName, 
+        lastName, 
+        businessName, 
+        phoneNumber, 
+        address
+      );
+      
+      if (newUser) {
+        setUser(newUser);
+        console.log('Signed up as:', role, 'with email:', email);
       } else {
-        setUser({ ...MOCK_USERS.customer, email });
-        console.log('Signed up as customer:', email);
+        // Fall back to mock users
+        if (role === 'manager' || role === 'admin') {
+          setUser({ 
+            ...MOCK_USERS.business, 
+            email,
+            firstName: firstName || 'Business',
+            lastName: lastName || 'Owner',
+            displayName: businessName || 'Mock Business'
+          });
+        } else {
+          setUser({ 
+            ...MOCK_USERS.customer, 
+            email,
+            firstName: firstName || 'Customer',
+            lastName: lastName || 'User',
+            displayName: firstName && lastName ? `${firstName} ${lastName}` : email
+          });
+        }
       }
     } catch (error) {
       console.error('Sign up error:', error);
@@ -103,6 +170,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const signOut = async () => {
     try {
+      localStorage.removeItem(USER_STORAGE_KEY);
       console.log('Signed out');
       setUser(null);
     } catch (error) {
@@ -112,28 +180,69 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const resetPassword = async (email: string) => {
     try {
-      console.log('Password reset email sent to:', email);
+      const success = await authService.resetPassword(email);
+      if (success) {
+        console.log('Password reset email sent to:', email);
+      } else {
+        console.error('Password reset failed: User not found');
+      }
     } catch (error) {
       console.error('Reset password error:', error);
     }
   };
 
-  // Function to easily switch between user roles for testing
-  const setUserRole = (role: 'business' | 'customer' | 'admin') => {
-    if (role === 'business') {
+  // Initialize authentication state
+  useEffect(() => {
+    console.log('Initializing authentication...');
+    
+    // Check if we have a stored user
+    const storedUser = getStoredUserData();
+    
+    if (storedUser) {
+      console.log('Found stored user data, restoring session');
+      setUser(storedUser);
+    } else {
+      // Check if we have a stored role preference
+      const storedUserType = localStorage.getItem(USER_ROLE_KEY);
+      
+      if (storedUserType) {
+        // Use the stored role preference
+        if (storedUserType === 'manager' || storedUserType === 'business') {
+          setUser(MOCK_USERS.business);
+          console.log('Initialized with stored business user role');
+        } else if (storedUserType === 'admin') {
+          setUser(MOCK_USERS.admin);
+          console.log('Initialized with stored admin user role');
+        } else {
+          setUser(MOCK_USERS.customer);
+          console.log('Initialized with stored customer user role');
+        }
+      } else {
+        // In a real app, we would check for stored credentials
+        // Default to business role for testing
+        setUser(MOCK_USERS.business);
+        localStorage.setItem(USER_ROLE_KEY, 'manager');
+        console.log('No stored role found, defaulting to business user');
+      }
+    }
+    
+    setLoading(false);
+  }, []);
+
+  // Update the setUserRole function to store the selection
+  const setUserRole = (role: 'admin' | 'manager' | 'staff' | 'customer') => {
+    if (role === 'manager') {
       setUser(MOCK_USERS.business);
+      localStorage.setItem(USER_ROLE_KEY, 'manager');
     } else if (role === 'customer') {
       setUser(MOCK_USERS.customer);
+      localStorage.setItem(USER_ROLE_KEY, 'customer');
     } else if (role === 'admin') {
       setUser(MOCK_USERS.admin);
+      localStorage.setItem(USER_ROLE_KEY, 'admin');
     }
     console.log(`Switched to ${role} role`);
   };
-
-  // Set up mock authentication bypass
-  useEffect(() => {
-    console.log('AUTH BYPASSED: Using mock customer account by default');
-  }, []);
 
   const value: AuthContextType = {
     user,

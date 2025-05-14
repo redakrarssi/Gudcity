@@ -1,4 +1,4 @@
-// Database types for your Supabase tables
+// Database types for your PostgreSQL tables
 export type Tables = {
   businesses: {
     id: string
@@ -17,16 +17,18 @@ export type Tables = {
   users: {
     id: string
     email: string
+    password_hash: string
     first_name: string
     last_name: string
     business_id: string | null
-    role: 'admin' | 'manager' | 'staff'
+    role: 'admin' | 'manager' | 'staff' | 'customer'
     created_at: string
     updated_at: string
   }
   
   customers: {
     id: string
+    user_id: string
     business_id: string
     first_name: string
     last_name: string
@@ -113,5 +115,38 @@ export type Tables = {
     settings_data: Record<string, any>
     created_at: string
     updated_at: string
+  }
+
+  redemption_codes: {
+    id: string
+    business_id: string
+    code: string
+    reward_id: string | null
+    value_type: 'points' | 'discount' | 'product'
+    value_amount: number
+    is_used: boolean
+    used_by: string | null
+    used_at: string | null
+    expires_at: string | null
+    created_at: string
+    updated_at: string
+  }
+
+  qr_codes: {
+    id: string
+    business_id: string
+    content: string
+    link_url: string | null
+    code_type: 'loyalty' | 'product' | 'promotion' | 'payment'
+    scans_count: number
+    unique_scans_count: number
+    description: string | null
+    metadata: Record<string, any> | null
+    created_at: string
+    updated_at: string
+  }
+
+  comments: {
+    comment: string
   }
 } 

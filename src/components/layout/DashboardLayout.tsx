@@ -46,7 +46,20 @@ const DashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  // Authentication check removed to allow access to dashboard
+  // Role-based redirects
+  useEffect(() => {
+    if (user) {
+      // Check if user is on the correct portal based on their role
+      if (user.role === 'customer' && location.pathname.startsWith('/dashboard')) {
+        // Customer trying to access business dashboard
+        navigate('/portal', { replace: true });
+      } else if ((user.role === 'manager' || user.role === 'staff' || user.role === 'admin') && 
+                location.pathname.startsWith('/portal')) {
+        // Business/admin user trying to access customer portal
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [user, location.pathname, navigate]);
   
   // Determine if a navigation link is active
   const isActive = (path: string) => {
@@ -120,10 +133,10 @@ const DashboardLayout: React.FC = () => {
                   <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
                   <span>Customer Portal</span>
                 </div>
-                {user?.points !== undefined && (
+                {(user as any)?.points !== undefined && (
                   <div className="mt-2 bg-blue-50 rounded-md p-2">
                     <div className="text-sm font-medium text-blue-700">
-                      {user.points} Points Available
+                      {(user as any).points} Points Available
                     </div>
                   </div>
                 )}

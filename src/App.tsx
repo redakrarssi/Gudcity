@@ -1,5 +1,5 @@
-import React, { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { lazy, Suspense, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 
 // Core layouts (keep these imported directly as they're critical for initial render)
@@ -55,10 +55,39 @@ const SEOTools = lazy(() => import('./pages/admin/SEOTools'));
 const SystemLogs = lazy(() => import('./pages/admin/SystemLogs'));
 const SystemSettings = lazy(() => import('./pages/admin/SystemSettings'));
 
-// Protected Route component - temporarily bypassing authentication
+// Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: string }> = ({ children, requiredRole }) => {
-  // In a real application, you would check if the user has the required role
-  // For now, we're bypassing authentication checks completely
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // If no user, redirect to login
+    if (!user) {
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    // If a role is required, check if user has that role
+    if (requiredRole) {
+      const hasAccess = 
+        (requiredRole === 'admin' && user.role === 'admin') ||
+        (requiredRole === 'business' && (user.role === 'manager' || user.role === 'staff' || user.role === 'admin')) ||
+        (requiredRole === 'customer' && user.role === 'customer');
+
+      if (!hasAccess) {
+        // Redirect to appropriate dashboard based on role
+        if (user.role === 'customer') {
+          navigate('/portal', { replace: true });
+        } else if (user.role === 'admin') {
+          navigate('/admin', { replace: true });
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
+      }
+    }
+  }, [user, requiredRole, navigate, location]);
+
   return <>{children}</>;
 };
 
@@ -113,7 +142,11 @@ function App() {
         </Route>
         
         {/* Customer Portal Routes */}
-        <Route path="/portal" element={<DashboardLayout />}>
+        <Route path="/portal" element={
+          <ProtectedRoute requiredRole="customer">
+            <DashboardLayout />
+          </ProtectedRoute>
+        }>
           <Route index element={
             <Suspense fallback={<LoadingFallback />}>
               <Dashboard />
@@ -137,7 +170,11 @@ function App() {
         </Route>
         
         {/* Business Dashboard Routes */}
-        <Route path="/dashboard" element={<DashboardLayout />}>
+        <Route path="/dashboard" element={
+          <ProtectedRoute requiredRole="business">
+            <DashboardLayout />
+          </ProtectedRoute>
+        }>
           <Route index element={
             <Suspense fallback={<LoadingFallback />}>
               <Dashboard />

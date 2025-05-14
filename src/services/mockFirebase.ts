@@ -1,27 +1,56 @@
 import { v4 as uuidv4 } from 'uuid';
 
-// Mock database for use in testing mode
-const mockDB: Record<string, Record<string, any>> = {
-  pointCodes: {},
-  codeIndex: {},
-  users: {
-    'mock-business-user-id': {
-      uid: 'mock-business-user-id',
-      email: 'business@example.com',
-      displayName: 'Test Business',
-      role: 'business',
-      businessId: 'mock-business-id',
-      isSetupComplete: true
-    },
-    'mock-customer-user-id': {
-      uid: 'mock-customer-user-id',
-      email: 'customer@example.com',
-      displayName: 'Test Customer',
-      role: 'customer',
-      points: { 'mock-business-id': 100 }
+// Storage key for localStorage
+const MOCK_DB_STORAGE_KEY = 'gudcity-mock-firebase-db';
+
+// Initialize mockDB from localStorage or use default
+const loadMockDB = (): Record<string, Record<string, any>> => {
+  try {
+    const storedDB = localStorage.getItem(MOCK_DB_STORAGE_KEY);
+    if (storedDB) {
+      console.log('MockFirebase: Loaded database from localStorage');
+      return JSON.parse(storedDB);
     }
-  },
-  redemptions: {}
+  } catch (error) {
+    console.error('MockFirebase: Error loading database from localStorage:', error);
+  }
+  
+  // Return default mock database if nothing in localStorage
+  return {
+    pointCodes: {},
+    codeIndex: {},
+    users: {
+      'mock-business-user-id': {
+        uid: 'mock-business-user-id',
+        email: 'business@example.com',
+        displayName: 'Test Business',
+        role: 'business',
+        businessId: 'mock-business-id',
+        isSetupComplete: true
+      },
+      'mock-customer-user-id': {
+        uid: 'mock-customer-user-id',
+        email: 'customer@example.com',
+        displayName: 'Test Customer',
+        role: 'customer',
+        points: { 'mock-business-id': 100 }
+      }
+    },
+    redemptions: {}
+  };
+};
+
+// Mock database for use in testing mode
+const mockDB: Record<string, Record<string, any>> = loadMockDB();
+
+// Function to save mockDB to localStorage
+const saveMockDB = () => {
+  try {
+    localStorage.setItem(MOCK_DB_STORAGE_KEY, JSON.stringify(mockDB));
+    console.log('MockFirebase: Saved database to localStorage');
+  } catch (error) {
+    console.error('MockFirebase: Error saving database to localStorage:', error);
+  }
 };
 
 // Mock Firestore document reference
@@ -57,6 +86,7 @@ class MockDocumentReference {
       )
     };
     console.log(`MockFirebase: Document ${this.collection}/${this.id} set:`, mockDB[this.collection][this.id]);
+    saveMockDB(); // Save to localStorage after modification
     return Promise.resolve();
   }
 
@@ -70,6 +100,7 @@ class MockDocumentReference {
       ...data
     };
     console.log(`MockFirebase: Document ${this.collection}/${this.id} updated:`, mockDB[this.collection][this.id]);
+    saveMockDB(); // Save to localStorage after modification
     return Promise.resolve();
   }
 
@@ -77,6 +108,7 @@ class MockDocumentReference {
     if (mockDB[this.collection]?.[this.id]) {
       console.log(`MockFirebase: Document ${this.collection}/${this.id} deleted`);
       delete mockDB[this.collection][this.id];
+      saveMockDB(); // Save to localStorage after modification
     }
     return Promise.resolve();
   }
@@ -209,4 +241,10 @@ export const serverTimestamp = () => {
 };
 
 // Utility function to get a reference to the mock database (for testing/debugging)
-export const getMockDB = () => ({ ...mockDB }); 
+export const getMockDB = () => ({ ...mockDB });
+
+// Utility function to clear the mock database in localStorage
+export const clearMockDB = () => {
+  localStorage.removeItem(MOCK_DB_STORAGE_KEY);
+  console.log('MockFirebase: Cleared database from localStorage');
+}; 

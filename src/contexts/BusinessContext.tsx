@@ -194,16 +194,41 @@ const mockRewards: Reward[] = [
   }
 ];
 
+// Storage key for localStorage
+const BUSINESS_STORAGE_KEY = 'gudcity-business-data';
+
+// Helper function to safely parse localStorage data
+const getStoredBusinessData = (): Business | null => {
+  try {
+    const storedData = localStorage.getItem(BUSINESS_STORAGE_KEY);
+    return storedData ? JSON.parse(storedData) : null;
+  } catch (error) {
+    console.error('Error parsing business data from localStorage:', error);
+    return null;
+  }
+};
+
 const BusinessContext = createContext<BusinessContextType | undefined>(undefined);
 
 export function BusinessProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [business, setBusiness] = useState<Business | null>(null);
+  
+  // Initialize state from localStorage or null
+  const [business, setBusiness] = useState<Business | null>(() => {
+    // Try to get data from localStorage first
+    const storedData = getStoredBusinessData();
+    if (storedData) {
+      console.log('Loaded business data from localStorage');
+      return storedData;
+    }
+    return null;
+  });
+  
   const [loading, setLoading] = useState(true);
 
-  // Load initial business data
+  // Load initial business data if not in localStorage
   useEffect(() => {
-    if (user) {
+    if (!business && user) {
       // Mock business with pre-populated data
       const mockBusiness: Business = {
         id: user.businessId || "mock-business-id",
@@ -228,16 +253,30 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       };
       
       setBusiness(mockBusiness);
-      setLoading(false);
-    } else {
-      setBusiness(null);
-      setLoading(false);
     }
-  }, [user]);
+    
+    setLoading(false);
+  }, [business, user]);
+  
+  // Persist business data to localStorage whenever it changes
+  useEffect(() => {
+    if (business) {
+      try {
+        localStorage.setItem(BUSINESS_STORAGE_KEY, JSON.stringify(business));
+        console.log('Saved business data to localStorage');
+      } catch (error) {
+        console.error('Error saving business data to localStorage:', error);
+      }
+    }
+  }, [business]);
 
   // Mock data functions to simulate database operations
   const saveBusiness = (data: Partial<Business>) => {
-    setBusiness(prev => prev ? { ...prev, ...data } : null);
+    setBusiness(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, ...data };
+      return updated;
+    });
   };
 
   const addProgram = (program: LoyaltyProgram) => {
