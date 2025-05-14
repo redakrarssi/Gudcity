@@ -5,14 +5,18 @@
  * Run this with: node setup-neon-env.js
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const envContent = `# Neon Database Connection
-VITE_DATABASE_URL=postgres://neondb_owner:npg_4ESIzAR3Kbrd@ep-black-credit-a2xfw9zx-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+VITE_DATABASE_URL=postgres://neondb_owner:npg_PZOYgSe82srL@ep-black-credit-a2xfw9zx-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
 
 # For uses requiring a connection without pgbouncer
-# VITE_DATABASE_URL_UNPOOLED=postgresql://neondb_owner:npg_4ESIzAR3Kbrd@ep-black-credit-a2xfw9zx.eu-central-1.aws.neon.tech/neondb?sslmode=require
+# VITE_DATABASE_URL_UNPOOLED=postgresql://neondb_owner:npg_PZOYgSe82srL@ep-black-credit-a2xfw9zx.eu-central-1.aws.neon.tech/neondb?sslmode=require
 `;
 
 const envFilePath = path.join(__dirname, '.env.development.local');
