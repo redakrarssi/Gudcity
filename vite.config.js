@@ -1,47 +1,34 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// Plugin to preserve React context references during HMR
-const preserveContextRefPlugin = () => {
-  const preserveRefFunc = `
-  function __preserveRef(key, v) {
-    if (import.meta.env.PROD) return v;
-    
-    import.meta.hot.data ??= {}
-    import.meta.hot.data.contexts ??= {}
-    const old = import.meta.hot.data.contexts[key];
-    const now = old || v;
-    
-    import.meta.hot.on('vite:beforeUpdate', () => {
-      import.meta.hot.data.contexts[key] = now;
-    });
-    
-    return now;
-  }
-  `;
-  
-  const createContextRegEx = /(import.*createContext.*react)|(React.createContext.*\(.*\))/;
-  const oldCreateRegex = /(const|let|var) (.*) = ((React\.createContext.*)|(createContext.*));/g;
-  
+// Plugin to fix context refresh issues
+const fixContextRefreshPlugin = () => {
   return {
-    name: 'vite:preserve-context-refs',
+    name: 'vite:fix-context-refresh',
+    enforce: 'pre',
     transform(code, id) {
-      if (!id.match(/\.(jsx|tsx|js|ts)$/) || !code.match(createContextRegEx)) {
+      // Only process JSX/TSX files
+      if (!id.endsWith('.jsx') && !id.endsWith('.tsx')) {
         return null;
       }
       
-      const newCode = code.replace(oldCreateRegex, 
-        (match, declType, contextName, createExpr) => {
-          return `${declType} ${contextName} = __preserveRef("${contextName}",${createExpr});`;
+      // Add hot.accept() to context files
+      if (
+        id.includes('Context') || 
+        code.includes('createContext') || 
+        (code.includes('useContext') && code.includes('export'))
+      ) {
+        // Check if the hot module code is already present
+        if (!code.includes('import.meta.hot')) {
+          return {
+            code: code + `
+// Fix for React Context HMR issues
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}`,
+            map: null
+          };
         }
-      );
-      
-      // Only add the helper function if we actually transformed something
-      if (newCode !== code) {
-        return {
-          code: newCode + preserveRefFunc,
-          map: null
-        };
       }
       
       return null;
@@ -51,11 +38,16 @@ const preserveContextRefPlugin = () => {
 
 export default defineConfig({
   plugins: [
-    preserveContextRefPlugin(),
+    fixContextRefreshPlugin(),
     react({
-      // Ensure Fast Refresh is enabled
-      fastRefresh: true,
+      // Completely disable Fast Refresh for now as a more reliable solution
+      fastRefresh: false,
     })
   ],
-  // ... rest of your config
+  server: {
+    hmr: {
+      // Better error overlay handling
+      overlay: true
+    }
+  }
 }); 

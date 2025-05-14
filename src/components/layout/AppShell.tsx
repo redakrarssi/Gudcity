@@ -3,7 +3,6 @@ import { Outlet } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
-import LoadingScreen from '../ui/LoadingScreen';
 
 // Lazy-loaded components to reduce initial bundle size
 const Footer = lazy(() => import('./Footer'));
