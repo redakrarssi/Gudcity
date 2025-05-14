@@ -29,7 +29,19 @@ const NeonDemo = lazy(() => import('./pages/NeonDemo'));
 // Lazy-loaded pages - Dashboard
 const Dashboard = lazy(() => import('./pages/dashboard/Dashboard'));
 const Programs = lazy(() => import('./pages/dashboard/Programs'));
-const Customers = lazy(() => import('./pages/dashboard/Customers'));
+const Customers = lazy(() => 
+  import('./pages/dashboard/Customers')
+  .catch(error => {
+    console.error("Failed to load Customers component:", error);
+    // Return a minimal component as fallback
+    return { 
+      default: () => <div className="p-8 text-center">
+        <h2 className="text-xl font-bold mb-4">Error Loading Customers</h2>
+        <p>There was a problem loading the Customers component. Please try refreshing the page.</p>
+      </div> 
+    };
+  })
+);
 const Transactions = lazy(() => import('./pages/dashboard/Transactions'));
 const Settings = lazy(() => import('./pages/dashboard/Settings'));
 const Rewards = lazy(() => import('./pages/dashboard/rewards'));
@@ -39,7 +51,19 @@ const CustomerTransactions = lazy(() => import('./pages/customer/CustomerTransac
 // Lazy-loaded additional Dashboard Pages
 const Cards = lazy(() => import('./pages/dashboard/BusinessCards'));
 const Reports = lazy(() => import('./pages/dashboard/Reports'));
-const CustomerDetail = lazy(() => import('./pages/dashboard/CustomerDetail'));
+const CustomerDetail = lazy(() => 
+  import('./pages/dashboard/CustomerDetail')
+  .catch(error => {
+    console.error("Failed to load CustomerDetail component:", error);
+    // Return a minimal component as fallback
+    return { 
+      default: () => <div className="p-8 text-center">
+        <h2 className="text-xl font-bold mb-4">Error Loading Customer Details</h2>
+        <p>There was a problem loading the customer details. Please try refreshing the page.</p>
+      </div> 
+    };
+  })
+);
 const TransactionDetail = lazy(() => import('./pages/dashboard/TransactionDetail'));
 const ProgramCodes = lazy(() => import('./pages/dashboard/ProgramCodes'));
 
