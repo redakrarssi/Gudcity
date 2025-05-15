@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Create a connection to the Neon database using the environment variable
-const sql = neon(process.env.VITE_DATABASE_URL || process.env.DATABASE_URL || '');
+const sql = neon(process.env.DATABASE_URL || process.env.VITE_DATABASE_URL || '');
 
 export default async function handler(req, res) {
   // Set CORS headers
