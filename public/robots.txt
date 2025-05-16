@@ -1,0 +1,6 @@
+# Allow all user agents access to all content
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://www.gudcity.com/sitemap.xml 
