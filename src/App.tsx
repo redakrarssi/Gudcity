@@ -17,8 +17,6 @@ const Services = lazy(() => import('./pages/Services'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Login = lazy(() => import('./pages/auth/Login'));
 const Register = lazy(() => import('./pages/auth/Register'));
-const TestQR = lazy(() => import('./pages/home/TestQR'));
-const NeonDemo = lazy(() => import('./pages/NeonDemo'));
 
 // Lazy-loaded pages - Dashboard
 const Dashboard = lazy(() => import('./pages/dashboard/Dashboard'));
@@ -41,6 +39,7 @@ const Settings = lazy(() => import('./pages/dashboard/Settings'));
 const Rewards = lazy(() => import('./pages/dashboard/rewards'));
 const CustomerSettings = lazy(() => import('./pages/customer/CustomerSettings'));
 const CustomerTransactions = lazy(() => import('./pages/customer/CustomerTransactions'));
+const LoyaltyCards = lazy(() => import('./pages/customer/LoyaltyCards'));
 
 // Lazy-loaded additional Dashboard Pages
 const Cards = lazy(() => import('./pages/dashboard/BusinessCards'));
@@ -148,16 +147,6 @@ function App() {
               <Register />
             </Suspense>
           } />
-          <Route path="test-qr" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
-              <TestQR />
-            </Suspense>
-          } />
-          <Route path="neon-demo" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
-              <NeonDemo />
-            </Suspense>
-          } />
         </Route>
         
         {/* Customer Portal Routes */}
@@ -179,6 +168,11 @@ function App() {
           <Route path="transactions" element={
             <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
               <CustomerTransactions />
+            </Suspense>
+          } />
+          <Route path="cards" element={
+            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+              <LoyaltyCards />
             </Suspense>
           } />
           <Route path="settings" element={
@@ -234,7 +228,7 @@ function App() {
               <Settings />
             </Suspense>
           } />
-          <Route path="cards" element={
+          <Route path="business-cards" element={
             <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
               <Cards />
             </Suspense>

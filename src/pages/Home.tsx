@@ -59,7 +59,7 @@ const HeroSection = memo(() => (
       </p>
       <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
         <Link 
-          to="/contact" 
+          to="/login" 
           className="px-8 py-3 border border-transparent text-base font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 shadow-lg"
         >
           Get Started
@@ -137,7 +137,7 @@ const Home: React.FC = () => {
           </p>
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
-              to="/contact" 
+              to="/login" 
               className="px-8 py-3 border border-transparent text-base font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 shadow-lg"
             >
               Get Started
@@ -291,7 +291,7 @@ const Home: React.FC = () => {
             <div className="mt-8 flex lg:mt-0 lg:flex-shrink-0">
               <div className="inline-flex rounded-md shadow">
                 <Link
-                  to="/contact"
+                  to="/login"
                   className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50"
                 >
                   Get Started

@@ -25,7 +25,7 @@ const businessNavigationItems = [
   { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { name: 'Programs', path: '/dashboard/programs', icon: Tags },
   { name: 'Customers', path: '/dashboard/customers', icon: Users },
-  { name: 'Cards', path: '/dashboard/cards', icon: CreditCard },
+  { name: 'Cards', path: '/dashboard/business-cards', icon: CreditCard },
   { name: 'Transactions', path: '/dashboard/transactions', icon: ShoppingCart },
   { name: 'Reports', path: '/dashboard/reports', icon: BarChart3 },
   { name: 'Settings', path: '/dashboard/settings', icon: Settings },
@@ -34,6 +34,7 @@ const businessNavigationItems = [
 // Navigation items for the customer dashboard
 const customerNavigationItems = [
   { name: 'My Dashboard', path: '/portal', icon: LayoutDashboard },
+  { name: 'My Cards', path: '/portal/cards', icon: CreditCard },
   { name: 'My Rewards', path: '/portal/rewards', icon: Gift },
   { name: 'My History', path: '/portal/transactions', icon: Clock },
   { name: 'Settings', path: '/portal/settings', icon: Settings },

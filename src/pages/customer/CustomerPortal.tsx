@@ -2,7 +2,7 @@ import React, { useState, ErrorInfo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { Card } from '../../components/ui/Card';
-import { ListChecks, CreditCard, Gift, ChevronRight, Award, ArrowRight, ExternalLink, PlusCircle, QrCode } from 'lucide-react';
+import { ListChecks, CreditCard, Gift, ChevronRight, Award, ArrowRight, ExternalLink, PlusCircle, QrCode, Scan } from 'lucide-react';
 import { CustomerLoyaltyCard } from '../../components/cards';
 import CorrectQRScanner from '../../components/qr/CorrectQRScanner';
 import Button from '../../components/ui/Button';
@@ -318,6 +318,124 @@ const CustomerPortal: React.FC = () => {
               </div>
             </div>
           </Card>
+        </div>
+        
+        {/* Rewards Card Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Active Rewards Card */}
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-sm overflow-hidden p-6">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">My Rewards</h2>
+                <p className="text-gray-600 text-sm">Redeem rewards from your loyalty programs</p>
+              </div>
+              <Link 
+                to="/portal/rewards" 
+                className="text-emerald-600 hover:text-emerald-700 text-sm font-medium flex items-center"
+              >
+                View all rewards
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Link>
+            </div>
+            
+            <div className="space-y-4">
+              {availableRewards > 0 ? (
+                SAMPLE_PROGRAMS.filter(program => program.pointsBalance >= program.rewardThreshold)
+                  .map(program => (
+                    <div key={program.id} className="bg-white rounded-lg shadow-sm p-4 border border-green-100 flex items-start">
+                      <div className="p-3 rounded-full bg-green-100 mr-3 flex-shrink-0">
+                        <Gift className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div className="flex-grow">
+                        <h3 className="font-medium">{program.businessName}</h3>
+                        <p className="text-sm text-gray-600">{program.rewardDescription}</p>
+                        <div className="mt-2 flex items-center">
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                            Reward Available
+                          </span>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="success" 
+                        size="sm"
+                        className="flex-shrink-0 ml-2"
+                      >
+                        Redeem
+                      </Button>
+                    </div>
+                  ))
+              ) : (
+                <div className="bg-white rounded-lg p-6 border border-gray-200 text-center">
+                  <div className="flex justify-center mb-3">
+                    <div className="p-3 rounded-full bg-gray-100">
+                      <Gift className="h-6 w-6 text-gray-400" />
+                    </div>
+                  </div>
+                  <h3 className="font-medium text-gray-800">No Rewards Available Yet</h3>
+                  <p className="text-sm text-gray-600 mt-1">Keep earning points to unlock rewards</p>
+                </div>
+              )}
+              
+              <Link 
+                to="/portal/rewards"
+                className="block text-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
+              >
+                Manage My Rewards
+              </Link>
+            </div>
+          </div>
+          
+          {/* QR Code Card to Receive Points */}
+          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl shadow-lg overflow-hidden p-6">
+            <h2 className="text-xl font-bold text-white">Quick Points</h2>
+            <p className="text-blue-100 mb-4">Scan or show your QR code to earn points at participating businesses</p>
+            
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20 mb-4">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                  <QrCode className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-white">Show Your QR Code</h3>
+                  <p className="text-xs text-blue-100">Let the business scan your code to award points</p>
+                </div>
+              </div>
+              
+              {selectedProgram && (
+                <div className="bg-white p-3 rounded-lg shadow-sm text-center">
+                  <p className="text-sm text-gray-700 mb-2">Quick access to your active card</p>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setShowQRScanner(false)}
+                    className="w-full"
+                  >
+                    Show {selectedProgram.businessName} Card
+                  </Button>
+                </div>
+              )}
+            </div>
+            
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                  <Scan className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-white">Scan Business QR Code</h3>
+                  <p className="text-xs text-blue-100">Scan a business QR code to join or earn points</p>
+                </div>
+              </div>
+              
+              <Button
+                onClick={() => setShowQRScanner(true)}
+                className="w-full bg-white text-indigo-700 hover:bg-blue-50"
+              >
+                <QrCode className="w-4 h-4 mr-2" />
+                <span>Open QR Scanner</span>
+              </Button>
+            </div>
+          </div>
         </div>
         
         {/* Main Content */}
