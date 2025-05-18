@@ -23,6 +23,13 @@ VITE_DATABASE_URL=postgres://username:password@host.neon.tech/database?sslmode=r
 
 You can get this URL from your Vercel project settings.
 
+## Recent Updates
+
+- Fixed infinite loading screen issue with improved error handling
+- Added database connection error recovery mechanism
+- Implemented mock data fallback when database is unavailable
+- Fixed HTML5 QR Code library integrity issues
+
 ## Getting Started
 
 ```bash
