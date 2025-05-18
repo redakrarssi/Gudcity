@@ -3,7 +3,10 @@ import type { Tables } from '../models/database.types';
 import { v4 as uuidv4 } from 'uuid';
 
 // Create a connection to the Neon database using the environment variable
-const sql = neon(import.meta.env.VITE_DATABASE_URL || '');
+let sql = neon(import.meta.env.VITE_DATABASE_URL || '');
+let isConnected = true;
+let connectionRetries = 0;
+const MAX_RETRIES = 3;
 
 /**
  * Core Database Service
@@ -11,14 +14,63 @@ const sql = neon(import.meta.env.VITE_DATABASE_URL || '');
  */
 class DatabaseService {
   /**
-   * Execute a raw SQL query
+   * Try to reconnect to the database in case of connection issues
+   */
+  async tryReconnect(): Promise<boolean> {
+    try {
+      if (connectionRetries >= MAX_RETRIES) {
+        console.error('Max reconnection attempts reached');
+        return false;
+      }
+
+      console.log('Attempting to reconnect to the database...');
+      connectionRetries++;
+      
+      // Reinitialize the database connection
+      sql = neon(import.meta.env.VITE_DATABASE_URL || '');
+      
+      // Test the connection with a simple query
+      await sql.query('SELECT 1');
+      
+      console.log('Successfully reconnected to the database');
+      isConnected = true;
+      connectionRetries = 0;
+      return true;
+    } catch (error) {
+      console.error('Failed to reconnect to the database:', error);
+      isConnected = false;
+      return false;
+    }
+  }
+
+  /**
+   * Execute a raw SQL query with reconnection logic
    */
   async executeQuery<T = any>(query: string, params: any[] = []): Promise<T[]> {
     try {
+      if (!isConnected && !(await this.tryReconnect())) {
+        console.error('Database is disconnected and reconnection failed');
+        return [];
+      }
+
       const result = await sql.query(query, params);
+      connectionRetries = 0; // Reset retries on successful query
       return result.rows;
     } catch (error) {
       console.error('Database query error:', error);
+      
+      // Try to reconnect if the error might be connection-related
+      if (error instanceof Error && 
+          (error.message.includes('connection') || 
+           error.message.includes('timeout') ||
+           error.message.includes('network'))) {
+        isConnected = false;
+        if (await this.tryReconnect()) {
+          // Retry the query after successful reconnection
+          return this.executeQuery(query, params);
+        }
+      }
+      
       throw error;
     }
   }
@@ -31,6 +83,11 @@ class DatabaseService {
     id: string
   ): Promise<Tables[T] | null> {
     try {
+      if (!isConnected && !(await this.tryReconnect())) {
+        console.error('Database is disconnected and reconnection failed');
+        return null;
+      }
+
       const result = await sql`
         SELECT * FROM ${sql(table)} 
         WHERE id = ${id}
@@ -40,6 +97,19 @@ class DatabaseService {
       return result.length > 0 ? result[0] as Tables[T] : null;
     } catch (error) {
       console.error(`Error fetching ${table} by ID:`, error);
+      
+      // Try to reconnect if the error might be connection-related
+      if (error instanceof Error && 
+          (error.message.includes('connection') || 
+           error.message.includes('timeout') ||
+           error.message.includes('network'))) {
+        isConnected = false;
+        if (await this.tryReconnect()) {
+          // Retry the operation
+          return this.getById(table, id);
+        }
+      }
+      
       throw error;
     }
   }

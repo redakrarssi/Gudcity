@@ -1,16 +1,31 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const LoadingScreen = () => {
   const [showTimeoutMessage, setShowTimeoutMessage] = useState(false);
+  const [showRecoveryOption, setShowRecoveryOption] = useState(false);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setShowTimeoutMessage(true);
-    }, 5000); // Show timeout message after 5 seconds
+    }, 3000); // Show timeout message after 3 seconds
 
-    return () => clearTimeout(timeoutId);
+    const recoveryTimeoutId = setTimeout(() => {
+      setShowRecoveryOption(true);
+    }, 5000); // Show recovery option after 5 seconds
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearTimeout(recoveryTimeoutId);
+    };
   }, []);
+
+  const handleRestart = () => {
+    // Clear potential problematic local storage that might cause the issue
+    localStorage.removeItem('gudcity-user-data');
+    // Force reload the application
+    window.location.reload();
+  };
 
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
@@ -27,6 +42,17 @@ const LoadingScreen = () => {
             <p className="text-sm text-yellow-800">
               Taking longer than usual? Try refreshing the page or check your internet connection.
             </p>
+          </div>
+        )}
+        {showRecoveryOption && (
+          <div className="mt-4">
+            <button
+              onClick={handleRestart}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Restart Application</span>
+            </button>
           </div>
         )}
       </div>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GudCity Loading Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f9fafb;
+    }
+    .container {
+      max-width: 600px;
+      padding: 2rem;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+    h1 {
+      color: #1e40af;
+      margin-bottom: 1.5rem;
+    }
+    p {
+      margin-bottom: 1.5rem;
+      color: #374151;
+      line-height: 1.6;
+    }
+    .button-group {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    button {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .load-app {
+      background-color: #1e40af;
+      color: white;
+    }
+    .load-app:hover {
+      background-color: #1e3a8a;
+    }
+    .clear-storage {
+      background-color: #dc2626;
+      color: white;
+    }
+    .clear-storage:hover {
+      background-color: #b91c1c;
+    }
+    .status {
+      padding: 0.75rem;
+      border-radius: 6px;
+      margin-top: 1.5rem;
+      display: none;
+    }
+    .status.success {
+      display: block;
+      background-color: #ecfdf5;
+      color: #047857;
+      border: 1px solid #10b981;
+    }
+    .status.error {
+      display: block;
+      background-color: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #ef4444;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>GudCity Loading Test</h1>
+    <p>
+      This page helps diagnose and fix loading issues with the GudCity Loyalty application.
+      If you're experiencing an infinite loading screen, try the options below.
+    </p>
+    
+    <div class="button-group">
+      <button class="load-app" id="loadApp">Load Application</button>
+      <button class="clear-storage" id="clearStorage">Clear Local Storage & Reload</button>
+    </div>
+    
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    document.getElementById('loadApp').addEventListener('click', function() {
+      window.location.href = '/';
+    });
+
+    document.getElementById('clearStorage').addEventListener('click', function() {
+      try {
+        // Clear all storage that might cause issues
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        const statusEl = document.getElementById('status');
+        statusEl.textContent = 'Storage cleared successfully! Redirecting...';
+        statusEl.className = 'status success';
+        
+        // Redirect after a short delay
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1500);
+      } catch (error) {
+        const statusEl = document.getElementById('status');
+        statusEl.textContent = 'Error clearing storage: ' + error.message;
+        statusEl.className = 'status error';
+      }
+    });
+  </script>
+</body>
+</html> 

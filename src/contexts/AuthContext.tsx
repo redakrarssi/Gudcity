@@ -196,7 +196,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     console.log('Initializing authentication...');
     let isMounted = true;
     
-    // Add a timeout to prevent infinite loading
+    // Add a timeout to prevent infinite loading - reduced to 1.5 seconds
     const timeoutId = setTimeout(() => {
       if (loading && isMounted) {
         console.warn('Authentication initialization timed out, falling back to default user');
@@ -205,7 +205,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.setItem(USER_ROLE_KEY, 'manager');
         setLoading(false);
       }
-    }, 3000); // Reduced timeout to 3 seconds for better UX
+    }, 1500); // Reduced timeout to 1.5 seconds for faster loading
     
     const initializeAuth = async () => {
       try {
@@ -255,45 +255,49 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       }
     };
-
+    
+    // Immediately start auth initialization
     initializeAuth();
     
-    // Clean up function
     return () => {
       isMounted = false;
       clearTimeout(timeoutId);
     };
   }, []);
 
-  // Update the setUserRole function to store the selection
+  // Change user role (for demo/testing)
   const setUserRole = (role: 'admin' | 'manager' | 'staff' | 'customer') => {
-    if (role === 'manager') {
-      setUser(MOCK_USERS.business);
-      localStorage.setItem(USER_ROLE_KEY, 'manager');
+    if (role === 'admin') {
+      setUser(MOCK_USERS.admin);
     } else if (role === 'customer') {
       setUser(MOCK_USERS.customer);
-      localStorage.setItem(USER_ROLE_KEY, 'customer');
-    } else if (role === 'admin') {
-      setUser(MOCK_USERS.admin);
-      localStorage.setItem(USER_ROLE_KEY, 'admin');
+    } else {
+      setUser(MOCK_USERS.business);
     }
-    console.log(`Switched to ${role} role`);
+    
+    localStorage.setItem(USER_ROLE_KEY, role);
+    console.log('Role changed to:', role);
   };
 
-  const value: AuthContextType = {
-    user,
-    loading,
-    signIn,
-    signUp,
-    signOut,
-    resetPassword,
-    setUserRole,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  // Provide auth context
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        signIn,
+        signUp,
+        signOut,
+        resetPassword,
+        setUserRole,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-// Hook for using auth context
+// Custom hook for using auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -302,5 +306,4 @@ export const useAuth = () => {
   return context;
 };
 
-// For compatibility with existing code
-export const useAuthContext = useAuth;
+export default AuthContext;

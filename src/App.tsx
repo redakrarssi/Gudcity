@@ -108,42 +108,63 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: strin
   return <>{children}</>;
 };
 
+// Simple suspense fallback component for all route loading
+const SuspenseFallback = () => (
+  <div className="flex justify-center items-center p-4">
+    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+  </div>
+);
+
 function App() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const [appReady, setAppReady] = useState(false);
   
-  // Remove loading state and just render the app directly
+  // Set app as ready after a short delay to prevent flickering
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAppReady(true);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Show LoadingScreen only during initial auth loading
+  if (loading || !appReady) {
+    return <LoadingScreen />;
+  }
+  
   return (
-    <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+    <Suspense fallback={<LoadingScreen />}>
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Layout />}>
           <Route index element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <Home />
             </Suspense>
           } />
           <Route path="about" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <About />
             </Suspense>
           } />
           <Route path="services" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <Services />
             </Suspense>
           } />
           <Route path="contact" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <Contact />
             </Suspense>
           } />
           <Route path="login" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <Login />
             </Suspense>
           } />
           <Route path="register" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <Register />
             </Suspense>
           } />
@@ -156,27 +177,27 @@ function App() {
           </ProtectedRoute>
         }>
           <Route index element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <Dashboard />
             </Suspense>
           } />
           <Route path="rewards" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <Rewards />
             </Suspense>
           } />
           <Route path="transactions" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <CustomerTransactions />
             </Suspense>
           } />
           <Route path="cards" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <LoyaltyCards />
             </Suspense>
           } />
           <Route path="settings" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <CustomerSettings />
             </Suspense>
           } />
@@ -189,137 +210,136 @@ function App() {
           </ProtectedRoute>
         }>
           <Route index element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <Dashboard />
             </Suspense>
           } />
           <Route path="programs" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <Programs />
             </Suspense>
           } />
           <Route path="programs/:programId/codes" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <ProgramCodes />
             </Suspense>
           } />
           <Route path="customers" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <Customers />
             </Suspense>
           } />
           <Route path="customers/:customerId" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <CustomerDetail />
             </Suspense>
           } />
           <Route path="transactions" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <Transactions />
             </Suspense>
           } />
           <Route path="transactions/:transactionId" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <TransactionDetail />
             </Suspense>
           } />
           <Route path="settings" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <Settings />
             </Suspense>
           } />
           <Route path="business-cards" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <Cards />
             </Suspense>
           } />
           <Route path="reports" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <Reports />
             </Suspense>
           } />
           <Route path="rewards" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <Rewards />
             </Suspense>
           } />
         </Route>
         
         {/* Admin Dashboard Routes */}
-        <Route 
-          path="/admin" 
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
-                <AdminLayout />
-              </Suspense>
-            </ProtectedRoute>
-          }
-        >
+        <Route path="/admin" element={
+          <ProtectedRoute requiredRole="admin">
+            <Suspense fallback={<SuspenseFallback />}>
+              <AdminLayout />
+            </Suspense>
+          </ProtectedRoute>
+        }>
           <Route index element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <AdminDashboard />
             </Suspense>
           } />
           <Route path="users" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <UserManagement />
             </Suspense>
           } />
           <Route path="businesses" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <BusinessManagement />
             </Suspense>
           } />
           <Route path="content" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <ContentManagement />
             </Suspense>
           } />
           <Route path="branding" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <BrandingManagement />
             </Suspense>
           } />
           <Route path="rewards" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <RewardsManagement />
             </Suspense>
           } />
           <Route path="reports" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <ReportsAnalytics />
             </Suspense>
           } />
           <Route path="seo" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <SEOTools />
             </Suspense>
           } />
           <Route path="logs" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <SystemLogs />
             </Suspense>
           } />
           <Route path="settings" element={
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div></div>}>
+            <Suspense fallback={<SuspenseFallback />}>
               <SystemSettings />
             </Suspense>
           } />
         </Route>
         
-        {/* Redirects based on user role */}
-        <Route 
-          path="/customer-portal" 
-          element={<Navigate to="/portal" replace />} 
-        />
-        <Route 
-          path="/business-portal" 
-          element={<Navigate to="/dashboard" replace />} 
-        />
-        
-        {/* Catch-all route */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Catch-all route - redirect to appropriate dashboard based on role */}
+        <Route path="*" element={
+          user ? (
+            user.role === 'admin' ? (
+              <Navigate to="/admin" replace />
+            ) : user.role === 'customer' ? (
+              <Navigate to="/portal" replace />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } />
       </Routes>
     </Suspense>
   );
