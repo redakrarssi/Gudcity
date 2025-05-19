@@ -6,6 +6,7 @@ import './index.css';
 import { AuthProvider } from './contexts/AuthContext';
 import { BusinessProvider } from './contexts/BusinessContext';
 import { collectWebVitals } from './utils/performanceMonitor';
+import { Toaster } from 'react-hot-toast';
 
 // Global error handler
 class ErrorBoundary extends React.Component<
@@ -102,6 +103,27 @@ collectWebVitals();
 // Performance optimization: Use a passive listener for touchstart events
 document.addEventListener('touchstart', () => {}, { passive: true });
 
+// Custom toast styles
+const toastOptions = {
+  style: {
+    borderRadius: '10px',
+    background: '#333',
+    color: '#fff',
+  },
+  success: {
+    style: {
+      background: '#10B981',
+      color: '#fff',
+    },
+  },
+  error: {
+    style: {
+      background: '#EF4444',
+      color: '#fff',
+    },
+  },
+};
+
 // Render the app
 ReactDOM.createRoot(document.getElementById('root')!).render(
   // In development, we keep StrictMode for better debugging
@@ -113,6 +135,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <AuthProvider>
             <BusinessProvider>
               <App />
+              <Toaster position="top-right" toastOptions={toastOptions} />
             </BusinessProvider>
           </AuthProvider>
         </BrowserRouter>
@@ -124,6 +147,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <AuthProvider>
           <BusinessProvider>
             <App />
+            <Toaster position="top-right" toastOptions={toastOptions} />
           </BusinessProvider>
         </AuthProvider>
       </BrowserRouter>

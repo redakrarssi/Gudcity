@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import authService, { User } from '../services/authService';
+import toast from 'react-hot-toast';
 
 // Define context type
 interface AuthContextType {
@@ -81,17 +82,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Auth methods
   const signIn = async (email: string, password: string) => {
     setLoading(true);
+    const toastId = toast.loading('Signing in...');
     try {
       const loggedInUser = await authService.signIn(email, password);
       
       if (loggedInUser) {
         setUser(loggedInUser);
         console.log('Signed in as:', email, 'with role:', loggedInUser.role);
+        toast.success(`Welcome back, ${loggedInUser.email}!`, { id: toastId });
       } else {
+        toast.error('Invalid credentials. Please try again.', { id: toastId });
         throw new Error('Invalid credentials');
       }
     } catch (error) {
       console.error('Authentication error:', error);
+      toast.error('Login failed. Please check your credentials.', { id: toastId });
       throw error;
     } finally {
       setLoading(false);
@@ -109,6 +114,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     address?: string
   ) => {
     setLoading(true);
+    const toastId = toast.loading('Creating your account...');
     try {
       const newUser = await authService.signUp(
         email, 
@@ -124,11 +130,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (newUser) {
         setUser(newUser);
         console.log('Signed up as:', role, 'with email:', email);
+        toast.success('Account created successfully!', { id: toastId });
       } else {
+        toast.error('Registration failed. Please try again.', { id: toastId });
         throw new Error('Registration failed');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sign up error:', error);
+      toast.error(error.message || 'Registration failed. Please try again.', { id: toastId });
       throw error;
     } finally {
       setLoading(false);
@@ -140,16 +149,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       localStorage.removeItem(USER_STORAGE_KEY);
       console.log('Signed out');
       setUser(null);
+      toast.success('You have been signed out successfully.');
     } catch (error) {
       console.error('Sign out error:', error);
+      toast.error('Error signing out. Please try again.');
     }
   };
 
   const resetPassword = async (email: string) => {
+    const toastId = toast.loading('Sending password reset email...');
     try {
       await authService.resetPassword(email);
+      toast.success('Password reset email sent. Please check your inbox.', { id: toastId });
     } catch (error) {
       console.error('Reset password error:', error);
+      toast.error('Failed to send password reset. Please try again.', { id: toastId });
       throw error;
     }
   };
@@ -158,6 +172,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const setUserRole = (role: 'admin' | 'manager' | 'staff' | 'customer') => {
     if (user) {
       setUser({ ...user, role });
+      toast.success(`Role changed to ${role}`);
     } else {
       localStorage.setItem(USER_ROLE_KEY, role);
     }

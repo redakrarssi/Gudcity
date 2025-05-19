@@ -13,6 +13,7 @@ interface ImportMeta {
 // Global window extensions
 interface Window {
   BYPASS_AUTH?: boolean;
+  dataLayer?: any[];
   Html5Qrcode?: any;
   Html5QrcodeSupportedFormats?: any;
 }
