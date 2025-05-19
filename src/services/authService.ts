@@ -156,23 +156,32 @@ class AuthService {
    */
   async signIn(email: string, password: string): Promise<User | null> {
     try {
-      // Use our authenticateUser function
-      const dbUser = await authenticateUser(email, password);
+      // Make API call to backend
+      const response = await fetch('/api/users/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      });
       
-      if (!dbUser) {
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        console.error('Login failed:', data.message);
         return null;
       }
       
       // Convert to the format expected by AuthContext
       return {
-        id: dbUser.id,
-        email: dbUser.email,
-        role: dbUser.role,
-        businessId: dbUser.business_id || undefined,
-        firstName: dbUser.first_name,
-        lastName: dbUser.last_name,
-        displayName: dbUser.first_name && dbUser.last_name ? 
-          `${dbUser.first_name} ${dbUser.last_name}` : dbUser.email
+        id: data.user.id,
+        email: data.user.email,
+        role: data.user.role,
+        businessId: data.user.business_id || undefined,
+        firstName: data.user.first_name,
+        lastName: data.user.last_name,
+        displayName: data.user.first_name && data.user.last_name ? 
+          `${data.user.first_name} ${data.user.last_name}` : data.user.email
       };
     } catch (error) {
       console.error('Sign in error:', error);
@@ -194,31 +203,34 @@ class AuthService {
     address?: string
   ): Promise<User | null> {
     try {
-      // Use our registerUser function
-      const dbUser = await registerUser({
-        email,
-        password,
-        first_name: firstName || '',
-        last_name: lastName || '',
-        role,
-        // We might need to create a business here if businessName is provided
+      // Make API call to the backend endpoint
+      const response = await fetch('/api/users/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          firstName,
+          lastName,
+          role,
+          businessName,
+          phoneNumber,
+          address
+        })
       });
       
-      if (!dbUser) {
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        console.error('Registration failed:', data.message);
         return null;
       }
       
-      // Convert to the format expected by AuthContext
-      return {
-        id: dbUser.id,
-        email: dbUser.email,
-        role: dbUser.role,
-        businessId: dbUser.business_id || undefined,
-        firstName: dbUser.first_name,
-        lastName: dbUser.last_name,
-        displayName: dbUser.first_name && dbUser.last_name ? 
-          `${dbUser.first_name} ${dbUser.last_name}` : dbUser.email
-      };
+      // After successful registration, fetch the user details or log in
+      return this.signIn(email, password);
+      
     } catch (error) {
       console.error('Sign up error:', error);
       throw error;

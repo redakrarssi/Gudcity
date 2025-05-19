@@ -138,6 +138,13 @@ export default defineConfig({
   server: {
     hmr: {
       overlay: true
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false
+      }
     }
   },
   preview: {
