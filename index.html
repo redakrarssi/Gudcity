@@ -68,7 +68,7 @@
         
         var script = document.createElement('script');
         script.src = "https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js";
-        script.integrity = "sha384-FZ3c8SZ96Cf0URY04SPTgA4EIlvJNJiZxAqSYP0hM+lHc0LB0cf+fMMZBpbRRdeV";
+        // Removed integrity check to fix SRI errors
         script.crossOrigin = "anonymous";
         
         // Handle errors

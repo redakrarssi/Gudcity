@@ -1,7 +1,15 @@
 import { neon } from '@neondatabase/serverless';
 
-// Create a connection to the Neon database using the environment variable
-const sql = neon(import.meta.env.VITE_DATABASE_URL || '');
+// Log the connection string (without showing sensitive info)
+console.log('Database URL exists:', !!import.meta.env.VITE_DATABASE_URL);
+
+// Create a connection to the Neon database
+// Use a hardcoded connection string for testing if the environment variable is missing or malformed
+const connectionString = import.meta.env.VITE_DATABASE_URL || 
+  'postgresql://neondb_owner:npg_PZOYgSe82srL@ep-black-credit-a2xfw9zx-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require';
+
+// Create a connection to the Neon database using the connection string
+const sql = neon(connectionString);
 
 /**
  * Adds a new comment to the database
@@ -10,7 +18,9 @@ const sql = neon(import.meta.env.VITE_DATABASE_URL || '');
  */
 export const addComment = async (comment: string): Promise<void> => {
   try {
+    console.log('Adding comment to database:', comment);
     await sql`INSERT INTO comments (comment) VALUES (${comment})`;
+    console.log('Comment added successfully');
   } catch (error) {
     console.error('Error adding comment:', error);
     throw error;
@@ -23,7 +33,9 @@ export const addComment = async (comment: string): Promise<void> => {
  */
 export const getComments = async (): Promise<Array<{ comment: string }>> => {
   try {
-    const result = await sql`SELECT * FROM comments`;
+    console.log('Fetching comments from database');
+    const result = await sql`SELECT * FROM comments ORDER BY created_at DESC`;
+    console.log('Comments fetched successfully:', result.length);
     return result as Array<{ comment: string }>;
   } catch (error) {
     console.error('Error getting comments:', error);

@@ -2,9 +2,31 @@ import { neon } from '@neondatabase/serverless';
 import type { Tables } from '../models/database.types';
 import { v4 as uuidv4 } from 'uuid';
 
-// Create a connection to the Neon database using the environment variable
-let sql = neon(import.meta.env.VITE_DATABASE_URL || '');
-let isConnected = true;
+const dbUrl = import.meta.env.VITE_DATABASE_URL || '';
+const useMockData = import.meta.env.VITE_USE_MOCK_DATA === 'true' || !dbUrl;
+
+// Create a connection to the Neon database using the environment variable, or use a dummy connection if not available
+let sql;
+try {
+  if (!useMockData && dbUrl) {
+    console.log('Initializing database connection with real database URL');
+    sql = neon(dbUrl);
+  } else {
+    console.log('Using mock data - no real database connection will be established');
+    // Create a mock SQL function that returns empty arrays
+    sql = {
+      query: async () => ({ rows: [] }),
+    };
+  }
+} catch (error) {
+  console.error('Error initializing database connection:', error);
+  // Provide fallback
+  sql = {
+    query: async () => ({ rows: [] }),
+  };
+}
+
+let isConnected = !useMockData;
 let connectionRetries = 0;
 const MAX_RETRIES = 3;
 
@@ -17,6 +39,12 @@ class DatabaseService {
    * Try to reconnect to the database in case of connection issues
    */
   async tryReconnect(): Promise<boolean> {
+    // Skip reconnection attempts if using mock data
+    if (useMockData) {
+      console.log('Using mock data - skipping database reconnection');
+      return false;
+    }
+    
     try {
       if (connectionRetries >= MAX_RETRIES) {
         console.error('Max reconnection attempts reached');
@@ -26,8 +54,13 @@ class DatabaseService {
       console.log('Attempting to reconnect to the database...');
       connectionRetries++;
       
+      if (!dbUrl) {
+        console.error('No database URL available for reconnection');
+        return false;
+      }
+      
       // Reinitialize the database connection
-      sql = neon(import.meta.env.VITE_DATABASE_URL || '');
+      sql = neon(dbUrl);
       
       // Test the connection with a simple query
       await sql.query('SELECT 1');
@@ -48,6 +81,12 @@ class DatabaseService {
    */
   async executeQuery<T = any>(query: string, params: any[] = []): Promise<T[]> {
     try {
+      // If using mock data, return empty results without attempting database connection
+      if (useMockData) {
+        console.log('Using mock data for query:', query.substring(0, 50) + '...');
+        return [];
+      }
+      
       if (!isConnected && !(await this.tryReconnect())) {
         console.error('Database is disconnected and reconnection failed');
         return [];

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "setup-neon": "node setup-neon-database.js",
     "test-neon": "node test-neon-connection.js",
-    "seed-db": "npx tsx src/seedDatabase.ts"
+    "seed-db": "npx tsx src/seedDatabase.ts",
+    "create-comments-table": "node -r dotenv/config create-comments-table.js"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.18",
@@ -19,7 +20,7 @@
     "@tailwindcss/forms": "^0.5.10",
     "chart.js": "^4.4.2",
     "date-fns": "^3.4.0",
-    "dotenv": "^16.4.1",
+    "dotenv": "^16.5.0",
     "firebase": "^10.8.1",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.344.0",
