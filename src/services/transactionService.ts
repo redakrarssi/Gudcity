@@ -1,117 +1,232 @@
-import { supabase, TABLES, handleDbError } from '../config/database';
-import type { Tables } from '../models/database.types';
-import { Transaction } from '../contexts/BusinessContext';
+import { sql, findById, create, update, remove, findAll } from './dbService';
+import { issuePoints } from './loyaltyProgramService';
+import { Tables } from '../models/database.types';
 
-// Get all transactions for a business
-export const getTransactions = async (businessId: string): Promise<Transaction[]> => {
-  try {
-    const { data, error } = await supabase
-      .from(TABLES.TRANSACTIONS)
-      .select('*, customers(first_name, last_name, email)')
-      .eq('business_id', businessId)
-      .order('date', { ascending: false });
-      
-    if (error) throw error;
-    
-    return data as Transaction[];
-  } catch (error) {
-    return handleDbError(error, 'fetch transactions');
-  }
+type Transaction = Tables['transactions'];
+
+/**
+ * Get a transaction by ID
+ * @param id The transaction ID
+ * @returns The transaction or null if not found
+ */
+export const getTransactionById = async (id: string): Promise<Transaction | null> => {
+  return await findById('transactions', id);
 };
 
-// Get transactions for a specific customer
-export const getCustomerTransactions = async (customerId: string): Promise<Transaction[]> => {
-  try {
-    const { data, error } = await supabase
-      .from(TABLES.TRANSACTIONS)
-      .select('*')
-      .eq('customer_id', customerId)
-      .order('date', { ascending: false });
-      
-    if (error) throw error;
-    
-    return data as Transaction[];
-  } catch (error) {
-    return handleDbError(error, 'fetch customer transactions');
-  }
+/**
+ * Create a new transaction
+ * @param transactionData The transaction data
+ * @returns The created transaction
+ */
+export const createTransaction = async (transactionData: Partial<Transaction>): Promise<Transaction> => {
+  return await create('transactions', transactionData);
 };
 
-// Create a new transaction and update loyalty points
-export const createTransaction = async (transaction: Omit<Tables['transactions'], 'id' | 'created_at' | 'updated_at'>): Promise<Transaction> => {
-  // Start a Supabase transaction (not fully supported yet in JS client, so we use multiple operations)
+/**
+ * Update a transaction
+ * @param id The transaction ID
+ * @param transactionData The updated transaction data
+ * @returns The updated transaction
+ */
+export const updateTransaction = async (id: string, transactionData: Partial<Transaction>): Promise<Transaction> => {
+  return await update('transactions', id, transactionData);
+};
+
+/**
+ * Delete a transaction
+ * @param id The transaction ID
+ * @returns The deleted transaction or null
+ */
+export const deleteTransaction = async (id: string): Promise<Transaction | null> => {
+  return await remove('transactions', id);
+};
+
+/**
+ * Get all transactions for a business
+ * @param businessId The business ID
+ * @param limit Maximum number of transactions to return
+ * @param offset Number of transactions to skip
+ * @returns Array of transactions
+ */
+export const getBusinessTransactions = async (
+  businessId: string,
+  limit = 100,
+  offset = 0
+): Promise<Transaction[]> => {
+  return await findAll('transactions', { business_id: businessId }, limit, offset);
+};
+
+/**
+ * Get transactions for a specific customer
+ * @param customerId The customer ID
+ * @param limit Maximum number of transactions to return
+ * @param offset Number of transactions to skip
+ * @returns Array of transactions
+ */
+export const getCustomerTransactions = async (
+  customerId: string,
+  limit = 100,
+  offset = 0
+): Promise<Transaction[]> => {
+  return await findAll('transactions', { customer_id: customerId }, limit, offset);
+};
+
+/**
+ * Record a purchase transaction and award loyalty points
+ * @param data The purchase data
+ * @returns The created transaction
+ */
+export const recordPurchase = async (data: {
+  businessId: string;
+  customerId: string;
+  programId?: string;
+  amount: number;
+  pointsEarned: number;
+  staffId?: string;
+  notes?: string;
+  receiptNumber?: string;
+}): Promise<Transaction> => {
   try {
-    // 1. Insert the transaction
-    const { data, error } = await supabase
-      .from(TABLES.TRANSACTIONS)
-      .insert([{
-        ...transaction,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
-      
-    if (error) throw error;
+    const {
+      businessId,
+      customerId,
+      programId,
+      amount,
+      pointsEarned,
+      staffId,
+      notes,
+      receiptNumber
+    } = data;
     
-    // 2. Update customer's total points for purchase or subtract for redemption
-    if (transaction.type === 'purchase') {
-      const { error: updateError } = await supabase.rpc('increment_customer_points', {
-        p_customer_id: transaction.customer_id,
-        p_points_amount: transaction.points_earned
-      });
-      
-      if (updateError) throw updateError;
-      
-      // 3. Update loyalty card points balance
-      if (transaction.program_id) {
-        const { error: cardError } = await supabase.rpc('increment_loyalty_card_points', {
-          p_customer_id: transaction.customer_id,
-          p_program_id: transaction.program_id,
-          p_points_amount: transaction.points_earned
-        });
-        
-        if (cardError) throw cardError;
-      }
-    } else if (transaction.type === 'reward_redemption') {
-      // For redemptions, subtract points
-      const { error: updateError } = await supabase.rpc('decrement_customer_points', {
-        p_customer_id: transaction.customer_id,
-        p_points_amount: Math.abs(transaction.points_earned) // points_earned should be negative for redemptions
-      });
-      
-      if (updateError) throw updateError;
-      
-      // Update loyalty card points balance
-      if (transaction.program_id) {
-        const { error: cardError } = await supabase.rpc('decrement_loyalty_card_points', {
-          p_customer_id: transaction.customer_id,
-          p_program_id: transaction.program_id,
-          p_points_amount: Math.abs(transaction.points_earned)
-        });
-        
-        if (cardError) throw cardError;
-      }
+    // Create the transaction
+    const transaction = await createTransaction({
+      business_id: businessId,
+      customer_id: customerId,
+      program_id: programId || null,
+      amount,
+      points_earned: pointsEarned,
+      date: new Date().toISOString(),
+      type: 'purchase',
+      staff_id: staffId || null,
+      notes: notes || null,
+      receipt_number: receiptNumber || null
+    });
+    
+    // If a program ID was provided, issue points to the customer
+    if (programId && pointsEarned > 0) {
+      await issuePoints(customerId, programId, pointsEarned);
     }
     
-    return data as Transaction;
+    // Update the customer's total points
+    await sql`
+      UPDATE customers
+      SET total_points = total_points + ${pointsEarned},
+          updated_at = NOW()
+      WHERE id = ${customerId}
+    `;
+    
+    return transaction;
   } catch (error) {
-    return handleDbError(error, 'create transaction');
+    console.error('Error recording purchase:', error);
+    throw error;
   }
 };
 
-// Get a single transaction by ID
-export const getTransaction = async (transactionId: string): Promise<Transaction | null> => {
+/**
+ * Record a reward redemption transaction
+ * @param data The redemption data
+ * @returns The created transaction
+ */
+export const recordRedemption = async (data: {
+  businessId: string;
+  customerId: string;
+  programId: string;
+  rewardId: string;
+  pointsRedeemed: number;
+  staffId?: string;
+  notes?: string;
+}): Promise<Transaction> => {
   try {
-    const { data, error } = await supabase
-      .from(TABLES.TRANSACTIONS)
-      .select('*, customers(first_name, last_name, email)')
-      .eq('id', transactionId)
-      .single();
-      
-    if (error) throw error;
+    const {
+      businessId,
+      customerId,
+      programId,
+      rewardId,
+      pointsRedeemed,
+      staffId,
+      notes
+    } = data;
     
-    return data as Transaction;
+    // Create the transaction
+    const transaction = await createTransaction({
+      business_id: businessId,
+      customer_id: customerId,
+      program_id: programId,
+      amount: 0, // Redemptions typically have zero monetary value
+      points_earned: -pointsRedeemed, // Negative points to indicate redemption
+      date: new Date().toISOString(),
+      type: 'reward_redemption',
+      staff_id: staffId || null,
+      notes: notes || `Redeemed reward ID: ${rewardId}`
+    });
+    
+    // Deduct points from loyalty card
+    await sql`
+      UPDATE loyalty_cards
+      SET points_balance = points_balance - ${pointsRedeemed},
+          updated_at = NOW()
+      WHERE customer_id = ${customerId} AND program_id = ${programId}
+    `;
+    
+    // Update the customer's total points
+    await sql`
+      UPDATE customers
+      SET total_points = total_points - ${pointsRedeemed},
+          updated_at = NOW()
+      WHERE id = ${customerId}
+    `;
+    
+    return transaction;
   } catch (error) {
-    return handleDbError(error, 'fetch transaction');
+    console.error('Error recording redemption:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get transaction statistics for a business
+ * @param businessId The business ID
+ * @returns Transaction statistics
+ */
+export const getTransactionStats = async (businessId: string): Promise<{
+  totalTransactions: number;
+  transactions7Days: number;
+  transactions30Days: number;
+  totalVolume: number;
+  averageAmount: number;
+}> => {
+  try {
+    const result = await sql`
+      SELECT 
+        COUNT(*) AS total_transactions,
+        SUM(CASE WHEN date >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END) AS transactions_7_days,
+        SUM(CASE WHEN date >= NOW() - INTERVAL '30 days' THEN 1 ELSE 0 END) AS transactions_30_days,
+        SUM(amount) AS total_volume,
+        AVG(amount) AS average_amount
+      FROM transactions
+      WHERE business_id = ${businessId} AND type = 'purchase'
+    `;
+    
+    const stats = result[0];
+    return {
+      totalTransactions: parseInt(stats?.total_transactions || '0', 10),
+      transactions7Days: parseInt(stats?.transactions_7_days || '0', 10),
+      transactions30Days: parseInt(stats?.transactions_30_days || '0', 10),
+      totalVolume: parseFloat(stats?.total_volume || '0'),
+      averageAmount: parseFloat(stats?.average_amount || '0')
+    };
+  } catch (error) {
+    console.error('Error getting transaction statistics:', error);
+    throw error;
   }
 }; 

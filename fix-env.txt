@@ -1,0 +1,5 @@
+# Use this corrected connection string in your .env.development.local file:
+VITE_DATABASE_URL=postgres://neondb_owner:npg_4ESIzAR3Kbrd@ep-black-credit-a2xfw9zx-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+
+# Remove any line breaks in the connection string
+# Make sure this is all on one line 

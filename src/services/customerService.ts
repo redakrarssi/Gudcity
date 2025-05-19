@@ -1,6 +1,8 @@
-import dbService from './database';
-import type { Tables } from '../models/database.types';
+import { sql, findById, create, update, remove, findAll } from './dbService';
+import { Tables } from '../models/database.types';
 import { nanoid } from 'nanoid';
+
+type Customer = Tables['customers'];
 
 /**
  * Customer Service
@@ -10,45 +12,21 @@ class CustomerService {
   /**
    * Get a customer by ID
    */
-  async getCustomerById(customerId: string): Promise<Tables['customers'] | null> {
-    try {
-      const query = `
-        SELECT * FROM customers
-        WHERE id = $1
-        LIMIT 1
-      `;
-      
-      const result = await dbService.executeQuery(query, [customerId]);
-      
-      if (result.length === 0) {
-        return null;
-      }
-      
-      return result[0] as Tables['customers'];
-    } catch (error) {
-      console.error('Error fetching customer:', error);
-      throw error;
-    }
+  async getCustomerById(customerId: string): Promise<Customer | null> {
+    return await findById('customers', customerId);
   }
   
   /**
    * Get a customer by user ID
    */
-  async getCustomerByUserId(userId: string): Promise<Tables['customers'] | null> {
+  async getCustomerByUserId(userId: string): Promise<Customer | null> {
     try {
-      const query = `
+      const result = await sql`
         SELECT * FROM customers
-        WHERE user_id = $1
+        WHERE user_id = ${userId}
         LIMIT 1
       `;
-      
-      const result = await dbService.executeQuery(query, [userId]);
-      
-      if (result.length === 0) {
-        return null;
-      }
-      
-      return result[0] as Tables['customers'];
+      return result[0] as Customer || null;
     } catch (error) {
       console.error('Error fetching customer by user ID:', error);
       throw error;
@@ -68,7 +46,7 @@ class CustomerService {
       searchTerm?: string;
     } = {}
   ): Promise<{
-    customers: Tables['customers'][];
+    customers: Customer[];
     total: number;
   }> {
     try {
@@ -112,8 +90,8 @@ class CustomerService {
         ${whereClause}
       `;
       
-      const countResult = await dbService.executeQuery(countQuery, params);
-      const total = parseInt(countResult[0].total);
+      const countResult = await sql`${countQuery}`, params;
+      const total = parseInt(countResult[0]?.total);
       
       // Get paginated results
       const query = `
@@ -124,10 +102,10 @@ class CustomerService {
         LIMIT ${limit} OFFSET ${offset}
       `;
       
-      const result = await dbService.executeQuery(query, params);
+      const result = await sql`${query}`, params;
       
       return {
-        customers: result as Tables['customers'][],
+        customers: result as Customer[],
         total
       };
     } catch (error) {
@@ -160,7 +138,7 @@ class CustomerService {
       
       query += ` ORDER BY lp.name ASC`;
       
-      const result = await dbService.executeQuery(query, params);
+      const result = await sql`${query}`, params;
       return result as Tables['loyalty_cards'][];
     } catch (error) {
       console.error('Error getting customer loyalty cards:', error);
@@ -214,8 +192,8 @@ class CustomerService {
         ${whereClause}
       `;
       
-      const countResult = await dbService.executeQuery(countQuery, params);
-      const total = parseInt(countResult[0].total);
+      const countResult = await sql`${countQuery}`, params;
+      const total = parseInt(countResult[0]?.total);
       
       // Get paginated results
       const query = `
@@ -230,7 +208,7 @@ class CustomerService {
         LIMIT ${limit} OFFSET ${offset}
       `;
       
-      const result = await dbService.executeQuery(query, params);
+      const result = await sql`${query}`, params;
       
       return {
         transactions: result as Tables['transactions'][],
@@ -247,43 +225,9 @@ class CustomerService {
    */
   async updateCustomerProfile(
     customerId: string,
-    updates: Partial<Tables['customers']>
-  ): Promise<Tables['customers']> {
-    try {
-      // Build SET clause
-      const setItems = [];
-      const params = [customerId]; // First param is the ID
-      
-      const allowedFields = [
-        'first_name', 'last_name', 'email', 
-        'phone', 'address', 'birthday', 'notes'
-      ];
-      
-      for (const [key, value] of Object.entries(updates)) {
-        if (allowedFields.includes(key) && value !== undefined) {
-          setItems.push(`${key} = $${params.length + 1}`);
-          params.push(value);
-        }
-      }
-      
-      // Add updated_at
-      setItems.push(`updated_at = $${params.length + 1}`);
-      params.push(new Date().toISOString());
-      
-      // Generate update query
-      const updateQuery = `
-        UPDATE customers
-        SET ${setItems.join(', ')}
-        WHERE id = $1
-        RETURNING *
-      `;
-      
-      const result = await dbService.executeQuery(updateQuery, params);
-      return result[0] as Tables['customers'];
-    } catch (error) {
-      console.error('Error updating customer profile:', error);
-      throw error;
-    }
+    updates: Partial<Customer>
+  ): Promise<Customer> {
+    return await update('customers', customerId, updates);
   }
   
   /**
@@ -300,7 +244,7 @@ class CustomerService {
       birthday?: string;
       notes?: string;
     }
-  ): Promise<Tables['customers']> {
+  ): Promise<Customer> {
     try {
       const { 
         firstName, 
@@ -319,7 +263,7 @@ class CustomerService {
         LIMIT 1
       `;
       
-      const checkResult = await dbService.executeQuery(checkQuery, [businessId, email]);
+      const checkResult = await sql`${checkQuery}`, [businessId, email];
       
       if (checkResult.length > 0) {
         throw new Error('A customer with this email already exists for this business');
@@ -361,8 +305,8 @@ class CustomerService {
         now
       ];
       
-      const result = await dbService.executeQuery(insertQuery, params);
-      return result[0] as Tables['customers'];
+      const result = await sql`${insertQuery}`, params;
+      return result[0] as Customer;
     } catch (error) {
       console.error('Error adding customer:', error);
       throw error;
@@ -437,11 +381,11 @@ class CustomerService {
         rewardsResult,
         recentTransactionsResult
       ] = await Promise.all([
-        dbService.executeQuery(pointsQuery, [customerId]),
-        dbService.executeQuery(transactionCountQuery, [customerId]),
-        dbService.executeQuery(programsQuery, [customerId]),
-        dbService.executeQuery(rewardsQuery, [customerId]),
-        dbService.executeQuery(recentTransactionsQuery, [customerId])
+        sql`${pointsQuery}`, [customerId],
+        sql`${transactionCountQuery}`, [customerId],
+        sql`${programsQuery}`, [customerId],
+        sql`${rewardsQuery}`, [customerId],
+        sql`${recentTransactionsQuery}`, [customerId]
       ]);
       
       return {

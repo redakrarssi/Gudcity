@@ -10,7 +10,8 @@
     "setup-neon": "node setup-neon-database.js",
     "test-neon": "node test-neon-connection.js",
     "seed-db": "npx tsx src/seedDatabase.ts",
-    "create-comments-table": "node -r dotenv/config create-comments-table.js"
+    "create-comments-table": "node -r dotenv/config create-comments-table.js",
+    "setup-db": "node -r dotenv/config -r @babel/register setup-neon-database.js"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.18",
@@ -40,6 +41,9 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@babel/core": "^7.23.7",
+    "@babel/preset-env": "^7.23.7",
+    "@babel/register": "^7.23.7",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@types/uuid": "^9.0.8",

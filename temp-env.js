@@ -1,0 +1,2 @@
+// Temporary environment variables setup
+process.env.VITE_DATABASE_URL = 'postgresql://neondb_owner:npg_PZOYgSe82srL@ep-black-credit-a2xfw9zx-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require'; 

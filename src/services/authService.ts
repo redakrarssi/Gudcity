@@ -1,21 +1,10 @@
-import { neon } from '@neondatabase/serverless';
-import dbService from './database';
-import { v4 as uuidv4 } from 'uuid';
+import { sql } from './dbService';
+import { getUserByEmail } from './userService';
+import { Tables } from '../models/database.types';
+import crypto from 'crypto';
 
-// For password hashing - we'll use a simple hash for demo purposes
-// In production, you would use bcrypt or similar
-function hashPassword(password: string): string {
-  // Simple hash function for demo - NOT SECURE for production
-  return `hashed_${password}`;
-}
-
-// For password verification - simple comparison for demo
-function verifyPassword(plainPassword: string, hashedPassword: string): boolean {
-  return hashedPassword === `hashed_${plainPassword}`;
-}
-
-// User type definition
-export interface User {
+// Define User type for export
+export type User = {
   id: string;
   email: string;
   role: 'admin' | 'manager' | 'staff' | 'customer';
@@ -24,63 +13,166 @@ export interface User {
   firstName?: string;
   lastName?: string;
   displayName?: string;
-}
+};
+
+// Internal user type from database
+type DbUser = Tables['users'];
 
 /**
- * Authentication Service
- * Handles user authentication against the database
+ * Hash a password using SHA-256
+ * @param password The plain text password
+ * @returns The hashed password
  */
+export const hashPassword = (password: string): string => {
+  return crypto.createHash('sha256').update(password).digest('hex');
+};
+
+/**
+ * Verify a password against a hash
+ * @param password The plain text password
+ * @param hash The hashed password
+ * @returns Whether the password is valid
+ */
+export const verifyPassword = (password: string, hash: string): boolean => {
+  const hashedPassword = hashPassword(password);
+  return hashedPassword === hash;
+};
+
+/**
+ * Authenticate a user with email and password
+ * @param email The user's email
+ * @param password The user's password
+ * @returns The user object without sensitive information if authentication was successful
+ */
+export const authenticateUser = async (email: string, password: string): Promise<Omit<DbUser, 'password_hash'> | null> => {
+  try {
+    // Get the user by email
+    const user = await getUserByEmail(email);
+    
+    // If user doesn't exist or password doesn't match, return null
+    if (!user || !verifyPassword(password, user.password_hash)) {
+      return null;
+    }
+    
+    // Remove sensitive information
+    const { password_hash, ...userWithoutPassword } = user;
+    
+    return userWithoutPassword;
+  } catch (error) {
+    console.error('Error authenticating user:', error);
+    throw error;
+  }
+};
+
+/**
+ * Register a new user
+ * @param userData The user data
+ * @returns The created user without sensitive information
+ */
+export const registerUser = async (userData: {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  role?: DbUser['role'];
+  business_id?: string | null;
+}): Promise<Omit<DbUser, 'password_hash'>> => {
+  try {
+    // Check if user already exists
+    const existingUser = await getUserByEmail(userData.email);
+    
+    if (existingUser) {
+      throw new Error('User with this email already exists');
+    }
+    
+    // Hash the password
+    const password_hash = hashPassword(userData.password);
+    
+    // Create the new user
+    const result = await sql`
+      INSERT INTO users (
+        id, email, password_hash, first_name, last_name, role, business_id, created_at, updated_at
+      ) VALUES (
+        gen_random_uuid(), ${userData.email}, ${password_hash}, ${userData.first_name}, 
+        ${userData.last_name}, ${userData.role || 'customer'}, ${userData.business_id || null}, 
+        NOW(), NOW()
+      ) RETURNING id, email, first_name, last_name, role, business_id, created_at, updated_at
+    `;
+    
+    return result[0] as Omit<DbUser, 'password_hash'>;
+  } catch (error) {
+    console.error('Error registering user:', error);
+    throw error;
+  }
+};
+
+/**
+ * Change a user's password
+ * @param userId The user ID
+ * @param currentPassword The current password
+ * @param newPassword The new password
+ * @returns Whether the password was changed successfully
+ */
+export const changePassword = async (userId: string, currentPassword: string, newPassword: string): Promise<boolean> => {
+  try {
+    // Get the user's current password hash
+    const result = await sql`
+      SELECT password_hash FROM users
+      WHERE id = ${userId}
+      LIMIT 1
+    `;
+    
+    if (result.length === 0) {
+      return false;
+    }
+    
+    const currentHash = result[0].password_hash;
+    
+    // Verify the current password
+    if (!verifyPassword(currentPassword, currentHash)) {
+      return false;
+    }
+    
+    // Hash and set the new password
+    const newHash = hashPassword(newPassword);
+    
+    await sql`
+      UPDATE users
+      SET password_hash = ${newHash}, updated_at = NOW()
+      WHERE id = ${userId}
+    `;
+    
+    return true;
+  } catch (error) {
+    console.error('Error changing password:', error);
+    throw error;
+  }
+};
+
+// Create a class-based authService compatible with the AuthContext expectations
 class AuthService {
   /**
    * Sign in a user with email and password
    */
   async signIn(email: string, password: string): Promise<User | null> {
     try {
-      // Find user by email
-      const users = await dbService.executeQuery(
-        'SELECT * FROM users WHERE email = $1 LIMIT 1',
-        [email]
-      );
+      // Use our authenticateUser function
+      const dbUser = await authenticateUser(email, password);
       
-      if (users.length === 0) {
-        return null; // User not found
+      if (!dbUser) {
+        return null;
       }
       
-      const user = users[0];
-      
-      // Verify password
-      if (!verifyPassword(password, user.password_hash)) {
-        return null; // Password incorrect
-      }
-      
-      // Find associated business or customer records
-      let businessId = user.business_id;
-      let customerId = null;
-      
-      if (user.role === 'customer') {
-        const customers = await dbService.executeQuery(
-          'SELECT * FROM customers WHERE user_id = $1 LIMIT 1',
-          [user.id]
-        );
-        
-        if (customers.length > 0) {
-          customerId = customers[0].id;
-          // If customer is associated with a business, get that too
-          businessId = customers[0].business_id;
-        }
-      }
-      
-      // Format user object
+      // Convert to the format expected by AuthContext
       return {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        businessId: businessId || undefined,
-        customerId: customerId || undefined,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        displayName: user.first_name && user.last_name ? 
-          `${user.first_name} ${user.last_name}` : user.email
+        id: dbUser.id,
+        email: dbUser.email,
+        role: dbUser.role,
+        businessId: dbUser.business_id || undefined,
+        firstName: dbUser.first_name,
+        lastName: dbUser.last_name,
+        displayName: dbUser.first_name && dbUser.last_name ? 
+          `${dbUser.first_name} ${dbUser.last_name}` : dbUser.email
       };
     } catch (error) {
       console.error('Sign in error:', error);
@@ -102,108 +194,30 @@ class AuthService {
     address?: string
   ): Promise<User | null> {
     try {
-      // Check if email already exists
-      const existingUsers = await dbService.executeQuery(
-        'SELECT * FROM users WHERE email = $1 LIMIT 1',
-        [email]
-      );
-      
-      if (existingUsers.length > 0) {
-        throw new Error('Email already in use');
-      }
-      
-      // Create transaction for related operations
-      const userId = uuidv4();
-      const now = new Date().toISOString();
-      
-      // Create user
-      await dbService.executeQuery(
-        `INSERT INTO users (
-          id, email, password_hash, first_name, last_name, role, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [
-          userId,
-          email,
-          hashPassword(password),
-          firstName || null,
-          lastName || null,
-          role,
-          now,
-          now
-        ]
-      );
-      
-      let businessId = undefined;
-      let customerId = undefined;
-      
-      // If business admin or manager role, create business record
-      if ((role === 'manager' || role === 'admin') && businessName) {
-        const business = await dbService.executeQuery(
-          `INSERT INTO businesses (
-            id, name, owner_id, email, phone, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-          RETURNING id`,
-          [
-            uuidv4(),
-            businessName,
-            userId,
-            email,
-            phoneNumber || null,
-            now,
-            now
-          ]
-        );
-        
-        if (business.length > 0) {
-          businessId = business[0].id;
-          
-          // Update user with business ID
-          await dbService.executeQuery(
-            'UPDATE users SET business_id = $1 WHERE id = $2',
-            [businessId, userId]
-          );
-        }
-      }
-      
-      // If customer role, create customer record
-      if (role === 'customer') {
-        const customer = await dbService.executeQuery(
-          `INSERT INTO customers (
-            id, user_id, first_name, last_name, email, phone, address, sign_up_date, 
-            total_points, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-          RETURNING id`,
-          [
-            uuidv4(),
-            userId,
-            firstName || null,
-            lastName || null,
-            email,
-            phoneNumber || null,
-            address || null,
-            now,
-            0, // Initial points
-            now,
-            now
-          ]
-        );
-        
-        if (customer.length > 0) {
-          customerId = customer[0].id;
-        }
-      }
-      
-      // Return user object
-      return {
-        id: userId,
+      // Use our registerUser function
+      const dbUser = await registerUser({
         email,
+        password,
+        first_name: firstName || '',
+        last_name: lastName || '',
         role,
-        businessId,
-        customerId,
-        firstName: firstName || undefined,
-        lastName: lastName || undefined,
-        displayName: firstName && lastName ? 
-          `${firstName} ${lastName}` : email
+        // We might need to create a business here if businessName is provided
+      });
+      
+      if (!dbUser) {
+        return null;
+      }
+      
+      // Convert to the format expected by AuthContext
+      return {
+        id: dbUser.id,
+        email: dbUser.email,
+        role: dbUser.role,
+        businessId: dbUser.business_id || undefined,
+        firstName: dbUser.first_name,
+        lastName: dbUser.last_name,
+        displayName: dbUser.first_name && dbUser.last_name ? 
+          `${dbUser.first_name} ${dbUser.last_name}` : dbUser.email
       };
     } catch (error) {
       console.error('Sign up error:', error);
@@ -217,12 +231,9 @@ class AuthService {
   async resetPassword(email: string): Promise<boolean> {
     try {
       // Check if user exists
-      const users = await dbService.executeQuery(
-        'SELECT * FROM users WHERE email = $1 LIMIT 1',
-        [email]
-      );
+      const user = await getUserByEmail(email);
       
-      if (users.length === 0) {
+      if (!user) {
         return false; // User not found
       }
       
@@ -231,7 +242,6 @@ class AuthService {
       // 2. Store it in the database with expiration
       // 3. Send an email with the reset link
       
-      // For this demo, we'll just log that the reset was requested
       console.log(`Password reset requested for ${email}`);
       return true;
     } catch (error) {
@@ -245,45 +255,29 @@ class AuthService {
    */
   async getUserById(userId: string): Promise<User | null> {
     try {
-      const users = await dbService.executeQuery(
-        'SELECT * FROM users WHERE id = $1 LIMIT 1',
-        [userId]
-      );
+      // Get user from database
+      const result = await sql`
+        SELECT * FROM users
+        WHERE id = ${userId}
+        LIMIT 1
+      `;
       
-      if (users.length === 0) {
-        return null; // User not found
+      if (result.length === 0) {
+        return null;
       }
       
-      const user = users[0];
+      const dbUser = result[0];
       
-      // Find associated business or customer records
-      let businessId = user.business_id;
-      let customerId = null;
-      
-      if (user.role === 'customer') {
-        const customers = await dbService.executeQuery(
-          'SELECT * FROM customers WHERE user_id = $1 LIMIT 1',
-          [user.id]
-        );
-        
-        if (customers.length > 0) {
-          customerId = customers[0].id;
-          // If customer is associated with a business, get that too
-          businessId = customers[0].business_id;
-        }
-      }
-      
-      // Format user object
+      // Convert to the format expected by AuthContext
       return {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        businessId: businessId || undefined,
-        customerId: customerId || undefined,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        displayName: user.first_name && user.last_name ? 
-          `${user.first_name} ${user.last_name}` : user.email
+        id: dbUser.id,
+        email: dbUser.email,
+        role: dbUser.role,
+        businessId: dbUser.business_id || undefined,
+        firstName: dbUser.first_name,
+        lastName: dbUser.last_name,
+        displayName: dbUser.first_name && dbUser.last_name ? 
+          `${dbUser.first_name} ${dbUser.last_name}` : dbUser.email
       };
     } catch (error) {
       console.error('Get user error:', error);
@@ -294,4 +288,6 @@ class AuthService {
 
 // Create singleton instance
 const authService = new AuthService();
+
+// Export both the default instance and individual functions
 export default authService; 

@@ -34,7 +34,8 @@ export const addComment = async (comment: string): Promise<void> => {
 export const getComments = async (): Promise<Array<{ comment: string }>> => {
   try {
     console.log('Fetching comments from database');
-    const result = await sql`SELECT * FROM comments ORDER BY created_at DESC`;
+    // No ORDER BY clause since created_at might not exist
+    const result = await sql`SELECT * FROM comments`;
     console.log('Comments fetched successfully:', result.length);
     return result as Array<{ comment: string }>;
   } catch (error) {
