@@ -165,11 +165,28 @@ class AuthService {
         body: JSON.stringify({ email, password })
       });
       
-      const data = await response.json();
+      if (!response.ok) {
+        // Check if we have an error message in the response
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Login failed');
+        } catch (jsonError) {
+          // If we can't parse JSON from the response
+          throw new Error(`Login failed with status: ${response.status}`);
+        }
+      }
       
-      if (!response.ok || !data.success) {
-        console.error('Login failed:', data.message);
-        return null;
+      // Try to parse JSON response
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse JSON response:', jsonError);
+        throw new Error('Invalid response from server');
+      }
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Login failed');
       }
       
       // Convert to the format expected by AuthContext
@@ -203,6 +220,8 @@ class AuthService {
     address?: string
   ): Promise<User | null> {
     try {
+      console.log('Registering user:', { email, role, firstName, lastName });
+      
       // Make API call to the backend endpoint
       const response = await fetch('/api/users/register', {
         method: 'POST',
@@ -221,18 +240,43 @@ class AuthService {
         })
       });
       
-      const data = await response.json();
-      
-      if (!response.ok || !data.success) {
-        console.error('Registration failed:', data.message);
-        return null;
+      if (!response.ok) {
+        // Check if we have an error message in the response
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Registration failed with status: ${response.status}`);
+        } catch (jsonError) {
+          // If we can't parse JSON from the response
+          throw new Error(`Registration failed with status: ${response.status}`);
+        }
       }
       
-      // After successful registration, fetch the user details or log in
-      return this.signIn(email, password);
+      // Parse the response
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse JSON response:', jsonError);
+        throw new Error('Invalid response from server');
+      }
       
+      if (!data.success) {
+        throw new Error(data.message || 'Registration failed');
+      }
+
+      // Convert to the format expected by AuthContext
+      return {
+        id: data.user.id,
+        email: data.user.email,
+        role: data.user.role,
+        businessId: data.user.business_id || undefined,
+        firstName: data.user.first_name,
+        lastName: data.user.last_name,
+        displayName: data.user.first_name && data.user.last_name ? 
+          `${data.user.first_name} ${data.user.last_name}` : data.user.email
+      };
     } catch (error) {
-      console.error('Sign up error:', error);
+      console.error('Registration error:', error);
       throw error;
     }
   }
