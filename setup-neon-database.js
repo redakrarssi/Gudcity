@@ -45,20 +45,6 @@ async function setupDatabase() {
   try {
     console.log('🔄 Setting up Neon database schema...');
     
-    // Create comments table if it doesn't exist
-    try {
-      console.log('🔄 Creating comments table...');
-      await sql`
-        CREATE TABLE IF NOT EXISTS comments (
-          id SERIAL PRIMARY KEY,
-          comment TEXT NOT NULL
-        )
-      `;
-      console.log('✅ Comments table ready');
-    } catch (err) {
-      console.error('❌ Failed to create comments table:', err);
-    }
-    
     // Read the SQL setup file if it exists
     let setupSqlPath = path.join(process.cwd(), 'src', 'sql', 'database_setup.sql');
     
@@ -83,8 +69,25 @@ async function setupDatabase() {
           console.warn(`⚠️ Statement error (might be normal): ${err.message}`);
         }
       }
+      
+      console.log('✅ Database schema created from SQL file');
     } else {
-      console.log('⚠️ No database_setup.sql file found. Only creating comments table.');
+      console.log('⚠️ No database_setup.sql file found. Creating basic tables...');
+      
+      // Create comments table if it doesn't exist
+      try {
+        console.log('🔄 Creating comments table...');
+        await sql`
+          CREATE TABLE IF NOT EXISTS comments (
+            id SERIAL PRIMARY KEY,
+            comment TEXT NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+          )
+        `;
+        console.log('✅ Comments table ready');
+      } catch (err) {
+        console.error('❌ Failed to create comments table:', err);
+      }
     }
     
     // Run another test query to verify the setup

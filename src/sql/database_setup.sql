@@ -330,4 +330,178 @@ CREATE INDEX idx_loyalty_programs_business_id ON loyalty_programs(business_id);
 CREATE INDEX idx_transactions_business_id ON transactions(business_id);
 CREATE INDEX idx_transactions_customer_id ON transactions(customer_id);
 CREATE INDEX idx_loyalty_cards_customer_id_program_id ON loyalty_cards(customer_id, program_id);
-CREATE INDEX idx_settings_business_id_category ON settings(business_id, category); 
+CREATE INDEX idx_settings_business_id_category ON settings(business_id, category);
+
+-- Database Schema Setup for Gudcity
+-- This file contains all the SQL statements to create the necessary database tables
+-- To be used with the setup-neon-database.js script
+
+-- Users table: Stores authentication and user information
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  first_name VARCHAR(100),
+  last_name VARCHAR(100),
+  business_id UUID,
+  role VARCHAR(20) CHECK (role IN ('admin', 'manager', 'staff', 'customer')) NOT NULL DEFAULT 'customer',
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Businesses table: Stores business information
+CREATE TABLE IF NOT EXISTS businesses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(255) NOT NULL,
+  owner_id UUID REFERENCES users(id),
+  address TEXT,
+  phone VARCHAR(20),
+  email VARCHAR(255),
+  website VARCHAR(255),
+  description TEXT,
+  logo_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Add foreign key constraint from users to businesses after both tables exist
+ALTER TABLE users ADD CONSTRAINT fk_user_business FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE SET NULL;
+
+-- Customers table: Stores customer information
+CREATE TABLE IF NOT EXISTS customers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
+  first_name VARCHAR(100),
+  last_name VARCHAR(100),
+  email VARCHAR(255),
+  phone VARCHAR(20),
+  address TEXT,
+  sign_up_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  total_points INTEGER DEFAULT 0,
+  birthday DATE,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE(user_id, business_id)
+);
+
+-- Loyalty Programs table: Defines different types of loyalty programs for businesses
+CREATE TABLE IF NOT EXISTS loyalty_programs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL,
+  type VARCHAR(20) CHECK (type IN ('points', 'punchcard', 'tiered')) NOT NULL,
+  description TEXT,
+  rules JSONB NOT NULL DEFAULT '{}',
+  active BOOLEAN DEFAULT TRUE,
+  start_date TIMESTAMP WITH TIME ZONE,
+  end_date TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Rewards table: Defines rewards that customers can redeem with points
+CREATE TABLE IF NOT EXISTS rewards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
+  program_id UUID REFERENCES loyalty_programs(id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  points_required INTEGER NOT NULL,
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Loyalty Cards table: Links customers with loyalty programs
+CREATE TABLE IF NOT EXISTS loyalty_cards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
+  customer_id UUID REFERENCES customers(id) ON DELETE CASCADE,
+  program_id UUID REFERENCES loyalty_programs(id) ON DELETE CASCADE,
+  points_balance INTEGER DEFAULT 0,
+  punch_count INTEGER,
+  tier VARCHAR(50),
+  issue_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  expiry_date TIMESTAMP WITH TIME ZONE,
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE(customer_id, program_id)
+);
+
+-- Transactions table: Records purchases, refunds, and reward redemptions
+CREATE TABLE IF NOT EXISTS transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
+  customer_id UUID REFERENCES customers(id) ON DELETE CASCADE,
+  program_id UUID REFERENCES loyalty_programs(id) ON DELETE SET NULL,
+  amount DECIMAL(10, 2) NOT NULL,
+  points_earned INTEGER NOT NULL DEFAULT 0,
+  date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  type VARCHAR(20) CHECK (type IN ('purchase', 'refund', 'reward_redemption')) NOT NULL,
+  staff_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  notes TEXT,
+  receipt_number VARCHAR(100),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Settings table: Stores business-specific settings
+CREATE TABLE IF NOT EXISTS settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
+  category VARCHAR(50) NOT NULL,
+  settings_data JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Redemption Codes table: Stores promotional or reward codes
+CREATE TABLE IF NOT EXISTS redemption_codes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
+  code VARCHAR(50) NOT NULL UNIQUE,
+  reward_id UUID REFERENCES rewards(id) ON DELETE SET NULL,
+  value_type VARCHAR(20) CHECK (value_type IN ('points', 'discount', 'product')) NOT NULL,
+  value_amount DECIMAL(10, 2) NOT NULL,
+  is_used BOOLEAN DEFAULT FALSE,
+  used_by UUID REFERENCES customers(id) ON DELETE SET NULL,
+  used_at TIMESTAMP WITH TIME ZONE,
+  expires_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- QR Codes table: Stores QR codes for various purposes
+CREATE TABLE IF NOT EXISTS qr_codes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  link_url TEXT,
+  code_type VARCHAR(20) CHECK (code_type IN ('loyalty', 'product', 'promotion', 'payment')) NOT NULL,
+  scans_count INTEGER DEFAULT 0,
+  unique_scans_count INTEGER DEFAULT 0,
+  description TEXT,
+  metadata JSONB,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Comments table: Simple table for demo purposes
+CREATE TABLE IF NOT EXISTS comments (
+  id SERIAL PRIMARY KEY,
+  comment TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_customers_user_id ON customers(user_id);
+CREATE INDEX IF NOT EXISTS idx_customers_business_id ON customers(business_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_customer_id ON transactions(customer_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_business_id ON transactions(business_id);
+CREATE INDEX IF NOT EXISTS idx_loyalty_programs_business_id ON loyalty_programs(business_id);
+CREATE INDEX IF NOT EXISTS idx_loyalty_cards_customer_id ON loyalty_cards(customer_id);
+CREATE INDEX IF NOT EXISTS idx_loyalty_cards_program_id ON loyalty_cards(program_id); 
