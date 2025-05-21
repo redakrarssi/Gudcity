@@ -4,6 +4,8 @@
   "devCommand": "npm run dev",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/api/users/register", "destination": "/api/users" },
+    { "source": "/api/users/login", "destination": "/api/users" },
     { "source": "/api/loyalty-programs/create", "destination": "/api/loyalty-programs/create" },
     { "source": "/(.*)", "destination": "/" }
   ],
