@@ -5,15 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "backend": "node server.js",
+    "dev:all": "concurrently \"npm run backend\" \"npm run dev\"",
     "build": "vite build",
     "preview": "vite preview",
+    "setup-db": "node setup-tables.cjs",
     "setup-neon": "node setup-neon-database.js",
     "test-neon": "node test-neon-connection.js",
+    "test-api": "node test-api.cjs",
     "seed-db": "npx tsx src/seedDatabase.ts",
-    "create-comments-table": "node -r dotenv/config create-comments-table.js",
-    "setup-db": "node -r dotenv/config -r @babel/register setup-neon-database.js",
-    "server": "node -r dotenv/config server.js",
-    "dev:all": "concurrently \"npm run server\" \"npm run dev\""
+    "create-comments-table": "node -r dotenv/config create-comments-table.js"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.18",
@@ -61,6 +62,7 @@
     "eslint": "^8.56.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "node-fetch": "^2.6.7",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.7.0",

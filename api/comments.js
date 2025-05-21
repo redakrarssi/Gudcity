@@ -1,13 +1,13 @@
-import { neon } from '@neondatabase/serverless';
-import dotenv from 'dotenv';
+const { neon } = require('@neondatabase/serverless');
+const dotenv = require('dotenv');
 
 // Load environment variables
 dotenv.config();
 
 // Create a connection to the Neon database using the environment variable
-const sql = neon(process.env.DATABASE_URL || process.env.VITE_DATABASE_URL || '');
+const sql = neon(process.env.DATABASE_URL || process.env.VITE_DATABASE_URL || 'postgresql://neondb_owner:npg_PZOYgSe82srL@ep-black-credit-a2xfw9zx-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');

@@ -1,44 +1,20 @@
-/**
- * Neon Database Setup Script
- * 
- * This script helps with setting up the Neon database integration:
- * 1. Creates the .env.development.local file with the correct connection string
- * 2. Tests the connection to the Neon database
- * 3. Creates all required database tables if they don't exist
- * 
- * Run with: node setup-neon-database.js
- */
-
-import { neon } from '@neondatabase/serverless';
-import dotenv from 'dotenv';
-import path from 'path';
-import fs from 'fs';
+// CommonJS script for setting up database tables
+const { neon } = require('@neondatabase/serverless');
+const dotenv = require('dotenv');
 
 // Load environment variables
 dotenv.config();
 
 // Get the DATABASE_URL from environment variables
-const DATABASE_URL = process.env.DATABASE_URL || process.env.VITE_DATABASE_URL || 'postgresql://neondb_owner:npg_PZOYgSe82srL@ep-black-credit-a2xfw9zx-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require';
-
-if (!DATABASE_URL) {
-  console.error('DATABASE_URL is not set in environment variables. Please set it before running this script.');
-  process.exit(1);
-}
+const connectionString = process.env.DATABASE_URL || process.env.VITE_DATABASE_URL || 'postgresql://neondb_owner:npg_PZOYgSe82srL@ep-black-credit-a2xfw9zx-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require';
+console.log('Using connection string:', connectionString);
 
 // Create a connection to the Neon database
-const sql = neon(DATABASE_URL);
+const sql = neon(connectionString);
 
-// Create the env file content
-const envContent = `# Neon Database Connection
-VITE_DATABASE_URL=postgres://neondb_owner:npg_4ESIzAR3Kbrd@ep-black-credit-a2xfw9zx-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
-`;
-
-// Path to the env file
-const envFilePath = path.join(__dirname, '.env.development.local');
-
-async function setupDatabase() {
+async function setupTables() {
   try {
-    console.log('Setting up Neon PostgreSQL database...');
+    console.log('Setting up database tables...');
 
     // Create comments table
     await sql`
@@ -190,6 +166,16 @@ async function setupDatabase() {
     `;
     console.log('Foreign key constraint added to qr_codes table');
 
+    // List all tables to confirm setup
+    const tables = await sql`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+    `;
+    
+    console.log('Tables in database:');
+    tables.forEach(t => console.log(` - ${t.table_name}`));
+
     console.log('Database setup complete!');
   } catch (error) {
     console.error('Error setting up database:', error);
@@ -197,25 +183,4 @@ async function setupDatabase() {
   }
 }
 
-setupDatabase();
-
-// Helper function to create the env file
-function createEnvFile() {
-  return new Promise((resolve, reject) => {
-    // Check if file already exists
-    if (fs.existsSync(envFilePath)) {
-      console.log('\x1b[33m%s\x1b[0m', '! .env.development.local file already exists');
-      console.log('Using existing environment file.');
-      return resolve();
-    }
-    
-    // Create the file
-    fs.writeFile(envFilePath, envContent, (err) => {
-      if (err) {
-        return reject(new Error(`Failed to create .env.development.local file: ${err.message}`));
-      }
-      console.log('\x1b[32m%s\x1b[0m', '✓ .env.development.local file created successfully!');
-      resolve();
-    });
-  });
-}
+setupTables(); 
