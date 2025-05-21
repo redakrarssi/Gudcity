@@ -41,10 +41,10 @@ async function setupDatabase() {
     console.log('Setting up Neon PostgreSQL database...');
 
     // Create comments table
-    await sql`
-      CREATE TABLE IF NOT EXISTS comments (
-        id SERIAL PRIMARY KEY,
-        comment TEXT NOT NULL,
+        await sql`
+          CREATE TABLE IF NOT EXISTS comments (
+            id SERIAL PRIMARY KEY,
+            comment TEXT NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `;

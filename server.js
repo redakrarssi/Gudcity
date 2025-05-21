@@ -5,6 +5,17 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
 
+// Import API handlers
+import usersHandler from './api/users.js';
+import qrCodeHandler from './api/qrcode.js';
+import rewardsHandler from './api/rewards.js';
+import loyaltyCardsHandler from './api/loyalty_cards.js';
+import redemptionCodesHandler from './api/redemption_codes.js';
+import loyaltyProgramsHandler from './api/loyalty_programs.js';
+import settingsHandler from './api/settings.js';
+// Import new loyalty programs routes
+import loyaltyProgramsRoutes from './api/loyalty-programs/routes.js';
+
 // Load environment variables
 dotenv.config();
 
@@ -35,88 +46,60 @@ app.use((req, res, next) => {
 // Basic route for testing
 app.get('/api/health', (req, res) => {
   res.status(200).json({
-    success: true,
+      success: true,
     message: 'API is healthy',
     timestamp: new Date().toISOString()
   });
 });
 
-// Directly implement the routes
-app.post('/api/users/register', async (req, res) => {
-  try {
-    const { email, password, firstName, lastName, role = 'customer', businessName, phoneNumber, address } = req.body;
-    
-    console.log('Processing registration for:', email);
-    
-    // Validate required fields
-    if (!email || !password) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Email and password are required' 
-      });
-    }
-    
-    // For testing purposes, we'll just return a success response
-    // In a real implementation, you would use the database code
-    return res.status(201).json({
-      success: true,
-      message: 'User registered successfully',
-      user: {
-        id: 'user-' + Date.now(),
-        email,
-        first_name: firstName || null,
-        last_name: lastName || null,
-        role,
-        business_id: null,
-      }
-    });
-  } catch (error) {
-    console.error('Registration error:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Internal server error', 
-      details: error.message 
-    });
-  }
+// API Routes
+// Users routes
+app.all('/api/users/register', (req, res) => usersHandler(req, res));
+app.all('/api/users/login', (req, res) => usersHandler(req, res));
+
+// QR Codes routes
+app.all('/api/qr_codes', (req, res) => qrCodeHandler(req, res));
+app.all('/api/qr_codes/:id', (req, res) => {
+  req.query.id = req.params.id;
+  return qrCodeHandler(req, res);
 });
 
-app.post('/api/users/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    
-    console.log('Processing login for:', email);
-    
-    // Validate required fields
-    if (!email || !password) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Email and password are required' 
-      });
-    }
-    
-    // For testing purposes, we'll just return a success response
-    // In a real implementation, you would use the database code
-    return res.status(200).json({
-      success: true,
-      message: 'Login successful',
-      user: {
-        id: 'user-' + Date.now(),
-        email,
-        first_name: 'Test',
-        last_name: 'User',
-        role: email.includes('admin') ? 'admin' : 
-              email.includes('business') ? 'manager' : 'customer',
-        business_id: null
-      }
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Internal server error', 
-      details: error.message 
-    });
-  }
+// Rewards routes
+app.all('/api/rewards', (req, res) => rewardsHandler(req, res));
+app.all('/api/rewards/:id', (req, res) => {
+  req.query.id = req.params.id;
+  return rewardsHandler(req, res);
+});
+
+// Loyalty Cards routes
+app.all('/api/loyalty_cards', (req, res) => loyaltyCardsHandler(req, res));
+app.all('/api/loyalty_cards/:id', (req, res) => {
+  req.query.id = req.params.id;
+  return loyaltyCardsHandler(req, res);
+});
+
+// Redemption Codes routes
+app.all('/api/redemption_codes', (req, res) => redemptionCodesHandler(req, res));
+app.all('/api/redemption_codes/:code', (req, res) => {
+  req.query.code = req.params.code;
+  return redemptionCodesHandler(req, res);
+});
+
+// Loyalty Programs routes (original)
+app.all('/api/loyalty_programs', (req, res) => loyaltyProgramsHandler(req, res));
+app.all('/api/loyalty_programs/:id', (req, res) => {
+  req.query.id = req.params.id;
+  return loyaltyProgramsHandler(req, res);
+});
+
+// New Loyalty Programs routes with hyphen
+app.use('/api/loyalty-programs', loyaltyProgramsRoutes);
+
+// Settings routes
+app.all('/api/settings', (req, res) => settingsHandler(req, res));
+app.all('/api/settings/:key', (req, res) => {
+  req.query.settings_key = req.params.key;
+  return settingsHandler(req, res);
 });
 
 // Options request handler for preflight requests
@@ -136,6 +119,16 @@ app.use((err, req, res, next) => {
 const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`API available at http://localhost:${PORT}/api/`);
+  console.log('Available endpoints:');
+  console.log('- GET, POST /api/users/register');
+  console.log('- GET, POST /api/users/login');
+  console.log('- GET, POST, PUT, DELETE /api/qr_codes');
+  console.log('- GET, POST, PUT, DELETE /api/rewards');
+  console.log('- GET, POST, PUT, DELETE /api/loyalty_cards');
+  console.log('- GET, POST, PUT, DELETE /api/redemption_codes');
+  console.log('- GET, POST, PUT, DELETE /api/loyalty_programs');
+  console.log('- GET, POST, PUT, DELETE /api/settings');
+  console.log('- POST /api/loyalty-programs/create');
 });
 
 // Handle server shutdown

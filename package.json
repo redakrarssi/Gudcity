@@ -6,13 +6,16 @@
   "scripts": {
     "dev": "vite",
     "backend": "node server.js",
+    "backend:new": "node server-new.js",
     "dev:all": "concurrently \"npm run backend\" \"npm run dev\"",
+    "dev:all:new": "concurrently \"npm run backend:new\" \"npm run dev\"",
     "build": "vite build",
     "preview": "vite preview",
     "setup-db": "node setup-tables.cjs",
     "setup-neon": "node setup-neon-database.js",
     "test-neon": "node test-neon-connection.js",
     "test-api": "node test-api.cjs",
+    "test-dashboard": "node test-api-dashboard.js",
     "seed-db": "npx tsx src/seedDatabase.ts",
     "create-comments-table": "node -r dotenv/config create-comments-table.js"
   },
@@ -69,5 +72,13 @@
     "typescript": "^5.3.3",
     "vite": "^5.1.4",
     "vite-plugin-compression": "^0.5.1"
+  },
+  "vercel": {
+    "env": {
+      "DATABASE_URL": "@database_url"
+    },
+    "buildCommand": "npm run build",
+    "outputDirectory": "dist",
+    "devCommand": "npm run dev"
   }
 }
